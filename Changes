@@ -1,5 +1,22 @@
 Revision history for SNMP-Effective
 
-0.01    Date/time
+0.03    Mon, 24 Sep 2007 23:14:00 +0200
+        <pm@flodhest.net>
+        * Renamed methods to follow an uniform standard:
+         * make_name_oid
+         * make_numeric_oid
+         * match_oid
+        * Added support for Log4perl. The old DEBUG is deprecated
+        * t/*tests* works for the first time
+
+0.02    Fri, 21 Sep 2007 16:24:00 +0100
+        <oliver.gorwits@oucs.ox.ac.uk>
+        * Improve alarm handling in SNMP::Effective::new
+        * PUSH in SNMP::Effective::VarList must take a list
+        * Fix version number in POD
+        * Improve documentation
+
+0.01    Sun, 16 Sep 2007 13:30:58 +0200
+        <pm@flodhest.net>
         First version, released on an unsuspecting world.
 
