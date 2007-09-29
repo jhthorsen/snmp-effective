@@ -28,7 +28,7 @@ sub SHIFT { #=================================================================
 }
 
 sub new { #===================================================================
-    bless {}, $_[0];
+    return bless {}, $_[0];
 }
 
 #=============================================================================
@@ -41,7 +41,7 @@ SNMP::Effective::HostList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.01 of SNMP::Effective::HostList.
+This document refers to version 0.04 of SNMP::Effective.
 
 =head1 DESCRIPTION
 

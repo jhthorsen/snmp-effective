@@ -5,35 +5,28 @@ package SNMP::Effective::Host;
 
 use warnings;
 use strict;
-use overload '""'  => sub { shift()->{'Addr'}    };
-use overload '${}' => sub { shift()->{'Session'} };
-use overload '@{}' => sub { shift()->{'VarList'} };
+use overload '""'  => sub { shift()->{'_address'} };
+use overload '${}' => sub { shift()->{'_session'} };
+use overload '@{}' => sub { shift()->{'_varlist'} };
 
 
-BEGIN {
+BEGIN { ## no critic # for strict
     no strict 'refs';
     my %sub2key = qw/
-                      address   Addr
-                      sesssion  Session
-                      varlist   VarList
-                      callback  Callback
-                      memory    Memory
+                      address   _address
+                      sesssion  _session
+                      varlist   _varlist
+                      callback  _callback
+                      heap      _heap
                   /;
     for my $subname (keys %sub2key) {
         *$subname = sub {
-
-            ### init
-            my $self = shift;
-            my $set  = shift;
-
-            $self->{ $sub2key{$subname} } = $set if($set);
-
-            ### the end
-            return $self->{$sub2key{$subname}};
+            my($self, $set)               = @_;
+            $self->{ $sub2key{$subname} } = $set if(defined $set);
+            $self->{ $sub2key{$subname} };
         }
     }
 }
-
 
 sub data { #==================================================================
 
@@ -50,7 +43,7 @@ sub data { #==================================================================
                    || SNMP::Effective::match_oid($r->[0], $ref_oid)
                    || 1;
 
-        $ref_oid    =~ s/^\.//;
+        $ref_oid    =~ s/^\.//mx;
 
         ### save
         $self->{'_data'}{$ref_oid}{$iid} = $r->[2];
@@ -58,7 +51,7 @@ sub data { #==================================================================
     }
 
     ### the end
-    return($self->{'_data'}, $self->{'_type'});
+    return $self->{'_data'};
 }
 
 sub arg { #===================================================================
@@ -69,19 +62,18 @@ sub arg { #===================================================================
 
     ### set value
     if(ref $arg eq 'HASH') {
-        $self->{'Arg'}{$_} = $arg->{$_} for(keys %$arg);
+        $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
     }
 
     ### the end
-    return wantarray ? (%{$self->{'Arg'}}, DestHost => "$self") : ();
+    return wantarray ? (%{$self->{'_arg'}}, DestHost => "$self") : ();
 }
 
 sub new { #===================================================================
     
     ### init
     my $class = shift;
-    my $addr  = shift or return;
-    my %args  = @_;
+    my $host  = shift or return;
     my($session, @varlist);
 
     ### tie
@@ -89,14 +81,13 @@ sub new { #===================================================================
 
     ### the end
     return bless {
-        Addr     => $addr,
-        Session  => \$session,
-        VarList  => \@varlist,
-        Callback => sub {},
-        Arg      => {},
-        Data     => {},
-        Memory   => {},
-        %args,
+        _address  => $host,
+        _session  => \$session,
+        _varlist  => \@varlist,
+        _callback => sub {},
+        _arg      => {},
+        _data     => {},
+        _heap     => {},
     }, $class;
 }
 
@@ -110,7 +101,7 @@ SNMP::Effective::HostList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.01 of SNMP::Effective::HostList.
+This document refers to version 0.04 of SNMP::Effective::HostList.
 
 =head1 DESCRIPTION
 
@@ -132,23 +123,25 @@ Get the retrieved data
 
 =head2 C<address>
 
-Get host address, also overloaded by ""
+Get host address, also overloaded by "$self"
 
 =head2 C<sesssion>
 
-Get SNMP::Session
+Get SNMP::Session, also overloaded by $$self
 
 =head2 C<varlist>
 
-Probably empty
+The remaining OIDs to get/set, also overloaded by @$self
 
 =head2 C<callback>
 
 Get a ref to the callback method
 
-=head2 C<memory>
+=head2 C<heap>
 
-Get / set any data you like
+Get / set any data you like. By default, it returns a hash-ref, so you can do:
+
+ $host->heap->{'mykey'} = "remember this";
            
 =head1 DEBUGGING
 

@@ -7,6 +7,13 @@ use strict;
 use warnings;
 use Time::HiRes qw/usleep/;
 
+our %METHOD = (
+    get     => 'get',
+    getnext => 'getnext',
+    walk    => 'getnext',
+    set     => 'set',
+);
+
 
 sub _set { #==================================================================
 
@@ -17,9 +24,7 @@ sub _set { #==================================================================
     my $response = shift;
 
     ### timeout
-    unless(ref $response) {
-        return $self->_end($host, 'Timeout');
-    }
+    return $self->_end($host, 'Timeout') unless(ref $response);
 
     ### handle response
     for my $r (grep { ref $_ } @$response) {
@@ -28,7 +33,7 @@ sub _set { #==================================================================
     }
 
     ### the end
-    $self->_end($host);
+    return $self->_end($host);
 }
 
 sub _get { #==================================================================
@@ -40,9 +45,7 @@ sub _get { #==================================================================
     my $response = shift;
 
     ### timeout
-    unless(ref $response) {
-        return $self->_end($host, 'Timeout');
-    }
+    return $self->_end($host, 'Timeout') unless(ref $response);
 
     ### handle response
     for my $r (grep { ref $_ } @$response) {
@@ -51,7 +54,28 @@ sub _get { #==================================================================
     }
 
     ### the end
-    $self->_end($host);
+    return $self->_end($host);
+}
+
+sub _getnext { #==============================================================
+
+    ### init
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $response = shift;
+
+    ### timeout
+    return $self->_end($host, 'Timeout') unless(ref $response);
+
+    ### handle response
+    for my $r (grep { ref $_ } @$response) {
+        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
+        $host->data($r, $cur_oid);
+    }
+
+    ### the end
+    return $self->_end($host);
 }
 
 sub _walk { #=================================================================
@@ -64,9 +88,7 @@ sub _walk { #=================================================================
     my $i        = 0;
 
     ### timeout
-    unless(ref $response) {
-        return $self->_end($host, 'Timeout');
-    }
+    return $self->_end($host, 'Timeout') unless(ref $response);
 
     ### handle response
     while($i < @$response) {
@@ -98,11 +120,12 @@ sub _walk { #=================================================================
     ### to be continued
     if(@$response) {
         $$host->getnext($response, [ \&_walk, $self, $host, $request ]);
+        return;
     }
 
-    ### the end
+    ### no more to get
     else {
-        $self->_end($host);
+        return $self->_end($host);
     }
 }
 
@@ -118,7 +141,7 @@ sub _end { #==================================================================
     $host->callback->($host, $error);
 
     ### the end
-    $self->dispatch($host)
+    return $self->dispatch($host)
 }
 
 sub dispatch { #==============================================================
@@ -131,11 +154,11 @@ sub dispatch { #==============================================================
     my $request;
 
     ### setup
-    usleep 900 + int rand 200 while($self->lock);
-    $self->lock(1);
+    usleep 900 + int rand 200 while($self->_lock);
+    $self->_lock(1);
 
     ### iterate host list
-    while($self->_sessions < $self->max_sessions or $host) {
+    while($self->{'_sessions'} < $self->max_sessions or $host) {
 
         ### init
         $host    ||= shift @$hostlist or last;
@@ -155,7 +178,7 @@ sub dispatch { #==============================================================
 
         ### ready request
         if($$host->can($request->[0]) and $self->can("_$request->[0]")) {
-            no strict;
+            no strict; ## no critic
             $cb      = \&{__PACKAGE__ ."::_$request->[0]"};
             $method  = $SNMP::Effective::METHOD{ $request->[0] };
             $sess_id = $$host->$method(
@@ -179,15 +202,15 @@ sub dispatch { #==============================================================
     }
 
     ### the end
-    $self->lock(0);
-    $log->debug($self->_sessions ." < " .$self->max_sessions);
-    unless(@$hostlist or $self->_sessions) {
+    $self->_lock(0);
+    $log->debug("$self->{'_sessions'} < " .$self->max_sessions);
+    unless(@$hostlist or $self->{'_sessions'}) {
         $log->info("SNMP::finish() is next up");
         SNMP::finish();
     }
 
     ### the end
-    return @$hostlist || $self->_sessions;
+    return @$hostlist || $self->{'_sessions'};
 }
 
 #=============================================================================
@@ -200,7 +223,7 @@ SNMP::Effective::Dispatch - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.01 of SNMP::Effective::Dispatch.
+This document refers to version 0.04 of SNMP::Effective.
 
 =head1 DESCRIPTION
 
@@ -220,6 +243,15 @@ it will default to "error" level, and print to STDERR. The component-name
 you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =head1 NOTES
+
+=head2 %SNMP::Effective::Dispatch::METHOD
+
+This hash contains a mapping between $effective->add($key => []),
+SNMP::Effective::Dispatch::_$key() and SNMP.pm's $value method. This means
+that you can actually add your custom method if you like.
+
+The SNMP::Effective::Dispatch::_walk() method, is a working example on this,
+since it's actually a series of getnext, seen from SNMP.pm's perspective.
 
 =head1 TODO
 

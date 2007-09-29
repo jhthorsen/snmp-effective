@@ -13,9 +13,8 @@ use SNMP::Effective::HostList;
 use SNMP::Effective::VarList;
 use POSIX qw(:errno_h);
 
-our $VERSION   = '0.01';
+our $VERSION   = '0.04';
 our @ISA       = qw/SNMP::Effective::Dispatch/;
-our %METHOD    = (get => 'get', walk => 'getnext', set => 'set');
 our %SNMPARG   = (
     Version   => '2c',
     Community => 'public',
@@ -23,7 +22,7 @@ our %SNMPARG   = (
     Retries   => 2
 );
 
-# loglevels: debug, info, warn, error and fatal
+### loglevels: DEBUG, INFO, WARN, ERROR and FATAL
 our $LOGCONFIG = {
     "log4perl.rootLogger"             => "ERROR, screen",
     "log4perl.appender.screen"        => "Log::Log4perl::Appender::Screen",
@@ -32,14 +31,13 @@ our $LOGCONFIG = {
 
 
 BEGIN {
-    no strict 'refs';
+    no strict 'refs'; ## no critic
     my %sub2key = qw/
                       max_sessions    MaxSessions
                       master_timeout  MasterTimeout
-                      _sessions       _sessions
                       _lock           _dispatch_lock
+                      _varlist        _varlist
                       hostlist        _hostlist
-                      varlist         _varlist
                       arg             _arg
                       callback        _callback
                       log             _logger
@@ -47,15 +45,9 @@ BEGIN {
 
     for my $subname (keys %sub2key) {
         *$subname = sub {
-
-            ### init
-            my $self = shift;
-            my $set  = shift;
-
-            $self->{ $sub2key{$subname} } = $set if($set);
-
-            ### the end
-            return $self->{$sub2key{$subname}};
+            my($self, $set)               = @_;
+            $self->{ $sub2key{$subname} } = $set if(defined $set);
+            $self->{ $sub2key{$subname} };
         }
     }
 }
@@ -94,19 +86,27 @@ sub add { #===================================================================
 
     ### init
     my $self        = shift;
-    my %in          = @_;
+    my %in          = @_ or return;
     my $hostlist    = $self->hostlist;
-    my $varlist     = $self->varlist;
+    my $varlist     = $self->_varlist;
     my $new_varlist = [];
 
+    ### fix arguments
+    for my $k (keys %in) {
+        my $v   =  delete $in{$k};
+           $k   =  lc $k;
+           $k   =~ s/_//gmx;
+        $in{$k} = $v;
+    }
+
     ### setup host
-    if($in{'DestHost'} and ref $in{'DestHost'} ne 'ARRAY') {
-        $in{'DestHost'} = [$in{'DestHost'}];
-        $self->log->info("Adding host(@{ $in{'DestHost'} }) to the queue");
+    if($in{'desthost'} and ref $in{'desthost'} ne 'ARRAY') {
+        $in{'desthost'} = [$in{'desthost'}];
+        $self->log->info("Adding host(@{ $in{'desthost'} }) to the queue");
     }
 
     ### setup varlist
-    for my $key (keys %SNMP::Effective::METHOD) {
+    for my $key (keys %SNMP::Effective::Dispatch::METHOD) {
         next unless($in{$key});
         push @$new_varlist, [$key, $in{$key}] if($in{$key});
         $self->log->info("Adding $key(@{ $in{$key} }) to the queue");
@@ -116,30 +116,33 @@ sub add { #===================================================================
     }
 
     ### add new hosts
-    if(ref $in{'DestHost'} eq 'ARRAY') {
-        for my $addr (@{$in{'DestHost'}}) {
+    if(ref $in{'desthost'} eq 'ARRAY') {
+        for my $addr (@{$in{'desthost'}}) {
             
             ### create new host
             unless($hostlist->{$addr}) {
                 $hostlist->{$addr} = SNMP::Effective::Host->new($addr);
-                $hostlist->{$addr}->arg(      $self->arg      );
-                $hostlist->{$addr}->callback( $self->callback );
+                $hostlist->{$addr}->arg($self->arg);
+                $hostlist->{$addr}->callback($self->callback);
             }
 
             ### alter created/existing host
             push @{$hostlist->{$addr}}, @$new_varlist;
-            $hostlist->{$addr}->arg($in{'Arg'});
-            $hostlist->{$addr}->callback($in{'Callback'});
-            $hostlist->{$addr}->memory($in{'Memory'});
+            $hostlist->{$addr}->arg($in{'arg'});
+            $hostlist->{$addr}->callback($in{'callback'});
+            $hostlist->{$addr}->heap($in{'heap'});
         }
     }
 
     ### update hosts
     else {
         push @$varlist, @$new_varlist;
-        $self->arg($in{'Arg'});
-        $self->callback($in{'Callback'});
+        $self->arg($in{'arg'});
+        $self->callback($in{'callback'});
     }
+
+    ### the end
+    return 1;
 }
 
 sub execute { #===============================================================
@@ -172,7 +175,7 @@ sub execute { #===============================================================
     };
 
     ### check result from eval
-    if($@ and $@ =~ m/alarm_clock_timeout/) {
+    if($@ and $@ =~ /alarm_clock_timeout/mx) {
         $self->lock(0);
         $self->master_timeout(0);
         $self->log->error("Master timeout!");
@@ -224,7 +227,7 @@ sub _check_errno { #==========================================================
         
     ### some other error
     else {
-        $string = $! + '';
+        $string = "$!";
         if(
             $err == EINTR  ||  # Interrupted system call
             $err == EAGAIN ||  # Resource temp. unavailable
@@ -248,19 +251,18 @@ sub match_oid { #=============================================================
     my $c = shift or return;
     
     ### check
-    return ($p =~ /^\.?$c\.?(.*)/) ? $1 : undef;
+    return ($p =~ /^ \.? $c \.? (.*)/mx) ? $1 : undef;
 }
 
 sub make_numeric_oid { #======================================================
 
     ### init
-    local $_;
     my @input = @_;
     
     ### fix
-    for(@input) {
-        next if(/^[\d\.]+$/);
-        $_ = SNMP::translateObj($_);
+    for my $i (@input) {
+        next if($i =~ /^ [\d\.]+ $/mx);
+        $i = SNMP::translateObj($i);
     }
     
     ### the end
@@ -270,12 +272,11 @@ sub make_numeric_oid { #======================================================
 sub make_name_oid { #=========================================================
 
     ### init
-    local $_;
     my @input = @_;
     
     ### fix
-    for(@input) {
-        $_ = SNMP::translateObj($_) if(/^[\d\.]+$/);
+    for my $i (@input) {
+        $i = SNMP::translateObj($i) if($i =~ /^ [\d\.]+ $/mx);
     }
     
     ### the end
@@ -293,7 +294,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 0.01 of SNMP::Effective.
+This document refers to version 0.04 of SNMP::Effective.
 
 =head1 SYNOPSIS
 
@@ -358,26 +359,26 @@ detail everything you need to know.
 
 This is the object constructor, and returns an SNMP::Effective object.
 
-Arguments:
+Arguments: (can be called many ways: DestHost, destHOst, dest_host)
 
  MaxSessions   => int # maximum number of simultaneous SNMP sessions
  MasterTimeout => int # maximum number of seconds before killing execute
 
-All other arguments are passed on to SNMP::Effective::Var::new, which from
-a user's perspective is the same as calling $snmp_effective->add( ... ).
+All other arguments are passed on to $snmp_effective->add( ... ).
 
 =head2 C<add>
 
 Adding information about what SNMP data to get and where to get it.
 
-Arguments:
+Arguments: (can be called many ways: DestHost, destHOst, dest_host)
 
- DestHost => []     # array-ref that contains a list of hosts
-                    # either ip-address or hostname
- Arg      => {}     # hash-ref, that is passed on to SNMP::Session
- Callback => sub {} # the callback which handles the response
- get      => []     # array-ref that holds a list of OIDs to get
- walk     => []     # array-ref that holds a list of OIDs to get
+ DestHost => []       # array-ref that contains a list of hosts
+                      # either ip-address or hostname
+ Arg      => {}       # hash-ref, that is passed on to SNMP::Session
+ Callback => sub {}   # the callback which handles the response
+ Heap     => ANYTHING # placeholder for extra information
+ get      => []       # array-ref that holds a list of OIDs to get
+ walk     => []       # array-ref that holds a list of OIDs to get
 
 This can be called with many different combinations, such as:
 
@@ -443,10 +444,6 @@ This returns the Log4perl object that is used for logging:
 =head2 C<hostlist>
  
  Returns a list containing all the hosts.
-
-=head2 C<varlist>
-
- Returns a list containing all OIDs to get.
 
 =head2 C<arg>
 

@@ -5,6 +5,7 @@ package SNMP::Effective::VarList;
 
 use warnings;
 use strict;
+use SNMP;
 use Tie::Array;
 use constant METHOD => 0;
 use constant OID    => 1;
@@ -23,7 +24,7 @@ sub PUSH { #==================================================================
 
         ### test request
         next unless(ref $r eq 'ARRAY' and $r->[METHOD] and $r->[OID]);
-        next unless($SNMP::Effective::METHOD{$r->[METHOD]});
+        next unless($SNMP::Effective::Dispatch::METHOD{$r->[METHOD]});
 
         ### fix OID array
         $r->[OID] = [$r->[OID]] unless(ref $r->[OID] eq 'ARRAY');
@@ -31,16 +32,19 @@ sub PUSH { #==================================================================
         ### setup VarList
         my @varlist = map  {
                           ref $_ eq 'ARRAY' ? $_    :
-                          /([0-9\.]+)/      ? [$1]  :
+                          /([0-9\.]+)/mx    ? [$1]  :
                                               undef ;
                       } @{$r->[OID]};
 
         ### add elements
         push @$self, [
                          $r->[METHOD],
-                         SNMP::VarList->new( grep $_, @varlist ),
+                         SNMP::VarList->new( grep {$_} @varlist ),
                      ];
     }
+
+    ### the end
+    return $self->FETCHSIZE;
 }
 
 #=============================================================================
@@ -53,7 +57,7 @@ SNMP::Effective::VarList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.01 of SNMP::Effective::VarList.
+This document refers to version 0.04 of SNMP::Effective::VarList.
 
 =head1 DESCRIPTION
 

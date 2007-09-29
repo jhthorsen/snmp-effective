@@ -1,5 +1,14 @@
 Revision history for SNMP-Effective
 
+0.04    Sat, 29 Sep 2007 15:20:00 +0200
+        <pm@flodhest.net>
+        * IMPORTANT! Renamed getnext to walk
+        * Added getnext, the way it's expected to behave
+        * Renamed more ::Host methods
+        * Fixed bug in BEGIN blocks: You can now set values that is "" or 0
+        * Split the namespaces into each seperate file and added more POD
+        * added heap() to ::Host, read the POD for more info
+
 0.03    Mon, 24 Sep 2007 23:14:00 +0200
         <pm@flodhest.net>
         * Renamed methods to follow an uniform standard:
