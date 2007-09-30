@@ -107,7 +107,9 @@ sub add { #===================================================================
 
     ### setup varlist
     for my $key (keys %SNMP::Effective::Dispatch::METHOD) {
-        next unless($in{$key});
+        next                    unless($in{$key});
+        $in{$key} = [$in{$key}] unless(ref $in{$key});
+
         push @$new_varlist, [$key, $in{$key}] if($in{$key});
         $self->log->info("Adding $key(@{ $in{$key} }) to the queue");
     }

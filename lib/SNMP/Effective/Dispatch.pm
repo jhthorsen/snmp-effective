@@ -137,7 +137,7 @@ sub _end { #==================================================================
     my $error = shift;
 
     ### cleanup
-    $self->log->debug("_end called for host $host - calling callback...");
+    $self->log->debug("calling callback for $host...");
     $host->callback->($host, $error);
 
     ### the end
@@ -161,12 +161,10 @@ sub dispatch { #==============================================================
     while($self->{'_sessions'} < $self->max_sessions or $host) {
 
         ### init
-        $host    ||= shift @$hostlist or last;
-        $request   = shift @$host;
+        $host         ||= shift @$hostlist or last;
+        $request        = shift @$host     or next;
+        my $snmp_method = $METHOD{ $request->[0] };
         my $sess_id;
-
-        ### test request
-        next unless(ref $request);
 
         ### fetch or create snmp session
         unless($$host) {
@@ -177,14 +175,13 @@ sub dispatch { #==============================================================
         }
 
         ### ready request
-        if($$host->can($request->[0]) and $self->can("_$request->[0]")) {
+        if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
             no strict; ## no critic
             $cb      = \&{__PACKAGE__ ."::_$request->[0]"};
-            $method  = $SNMP::Effective::METHOD{ $request->[0] };
-            $sess_id = $$host->$method(
+            $sess_id = $$host->$snmp_method(
                            $request->[1], [$cb, $self, $host, $request->[1]]
                        );
-            $log->debug("$host -> $method : $request->[1]");
+            $log->debug("$host -> $snmp_method : $request->[1]");
         }
 
         ### something went wrong
@@ -203,7 +200,10 @@ sub dispatch { #==============================================================
 
     ### the end
     $self->_lock(0);
-    $log->debug("$self->{'_sessions'} < " .$self->max_sessions);
+    $log->debug(
+        "sessions/max-sessions: "
+       .$self->{'_sessions'} ." < " .$self->max_sessions
+    );
     unless(@$hostlist or $self->{'_sessions'}) {
         $log->info("SNMP::finish() is next up");
         SNMP::finish();
