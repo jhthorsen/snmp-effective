@@ -97,11 +97,11 @@ __END__
 
 =head1 NAME
 
-SNMP::Effective::HostList - Helper module for SNMP::Effective
+SNMP::Effective::Host - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.04 of SNMP::Effective::HostList.
+This document refers to version 0.04 of SNMP::Effective::Host.
 
 =head1 DESCRIPTION
 

@@ -41,7 +41,7 @@ SNMP::Effective::HostList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.04 of SNMP::Effective.
+This document refers to version 0.04 of SNMP::Effective::HostList.
 
 =head1 DESCRIPTION
 
