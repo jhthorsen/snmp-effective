@@ -137,7 +137,7 @@ sub _end { #==================================================================
     my $error = shift;
 
     ### cleanup
-    $self->log->debug("calling callback for $host...");
+    $self->log->debug("Calling callback for $host...");
     $host->callback->($host, $error);
 
     ### the end
@@ -152,56 +152,61 @@ sub dispatch { #==============================================================
     my $hostlist = $self->hostlist;
     my $log      = $self->log;
     my $request;
+    my $req_id;
 
     ### setup
     usleep 900 + int rand 200 while($self->_lock);
     $self->_lock(1);
 
-    ### iterate host list
+    HOST:
     while($self->{'_sessions'} < $self->max_sessions or $host) {
 
         ### init
-        $host         ||= shift @$hostlist or last;
-        $request        = shift @$host     or next;
+        $host         ||= shift @$hostlist or last HOST;
+        $request        = shift @$host     or next HOST;
+        $req_id         = undef;
         my $snmp_method = $METHOD{ $request->[0] };
-        my $sess_id;
 
         ### fetch or create snmp session
         unless($$host) {
             unless($$host = $self->_create_session($host)) {
-                next;
+                next HOST;
             }
             $self->{'_sessions'}++;
         }
 
         ### ready request
         if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
-            no strict; ## no critic
-            $cb      = \&{__PACKAGE__ ."::_$request->[0]"};
-            $sess_id = $$host->$snmp_method(
-                           $request->[1], [$cb, $self, $host, $request->[1]]
-                       );
-            $log->debug("$host -> $snmp_method : $request->[1]");
+            $req_id = $$host->$snmp_method(
+                          $request->[1],
+                          [ "_$request->[0]", $self, $host, $request->[1] ]
+                      );
+            $log->debug(
+                "\$self->_$request->[0]( ${host}->$snmp_method("
+                .$request->[1]->name .") )"
+            );
         }
 
         ### something went wrong
-        unless($sess_id) {
-            $log->info("Method: $request->[0] failed \@ $host");
-            next;
+        unless($req_id) {
+            $log->info("Method $request->[0] failed \@ $host");
+            next HOST;
         }
     }
     continue {
         if(ref $$host and !ref $request) {
             $self->{'_sessions'}--;
-            $log->info("complete: $host");
+            $log->info("Completed $host");
         }
-        $host = undef;
+        if($req_id or !@$host) {
+            $host = undef;
+        }
     }
 
     ### the end
     $self->_lock(0);
     $log->debug(
-        "sessions/max-sessions: "
+        "Sessions/max-sessions: "
        .$self->{'_sessions'} ." < " .$self->max_sessions
     );
     unless(@$hostlist or $self->{'_sessions'}) {

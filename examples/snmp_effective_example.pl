@@ -22,7 +22,7 @@ Log::Log4perl->init($LOG4PERL) unless(Log::Log4perl->initialized);
 ### set up SNMP::Effective
 my $effective = SNMP::Effective->new(
                     dest_host => "127.0.0.1",
-                    get       => "sysDescr.0",
+                    get       => "1.3.6.1.2.1.1.1.0", # sysDescr.0
                     getnext   => "sysName",
                     walk      => "ifNames",
                     callback  => sub { my_callback(@_) },

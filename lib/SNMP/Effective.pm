@@ -102,7 +102,7 @@ sub add { #===================================================================
     ### setup host
     if($in{'desthost'} and ref $in{'desthost'} ne 'ARRAY') {
         $in{'desthost'} = [$in{'desthost'}];
-        $self->log->info("Adding host(@{ $in{'desthost'} }) to the queue");
+        $self->log->info("Adding host(@{ $in{'desthost'} })");
     }
 
     ### setup varlist
@@ -110,8 +110,12 @@ sub add { #===================================================================
         next                    unless($in{$key});
         $in{$key} = [$in{$key}] unless(ref $in{$key});
 
-        push @$new_varlist, [$key, $in{$key}] if($in{$key});
-        $self->log->info("Adding $key(@{ $in{$key} }) to the queue");
+        ### add to queue
+        if(@{$in{$key}}) {
+            $self->log->info("Adding $key(@{ $in{$key} })");
+            unshift @{$in{$key}}, $key;
+            push @$new_varlist, $in{$key};
+        }
     }
     unless(@$new_varlist) {
         $new_varlist = $varlist;
@@ -380,7 +384,9 @@ Arguments: (can be called many ways: DestHost, destHOst, dest_host)
  Callback => sub {}   # the callback which handles the response
  Heap     => ANYTHING # placeholder for extra information
  get      => []       # array-ref that holds a list of OIDs to get
- walk     => []       # array-ref that holds a list of OIDs to get
+ getnext  => []       # array-ref that holds a list of OIDs to getnext
+ walk     => []       # array-ref that holds a list of OIDs to walk
+ set      => []       # array-ref that holds a list of OIDs to set + values
 
 This can be called with many different combinations, such as:
 
@@ -391,7 +397,7 @@ This can be called with many different combinations, such as:
 This will make changes per DestHost specified. You can use this to change Arg,
 Callback or add OIDs on a per-host basis.
 
-=item get / walk 
+=item get / getnext / walk / set
 
 The OID list submitted to C<add()> will be added to all DestHosts, if no
 DestHost is specified.
@@ -416,6 +422,26 @@ retrieved, it will call the callback-method, as defined globally or per host.
 
  Get/Set the number of max session
 
+=head2 C<log>
+
+This returns the Log4perl object that is used for logging:
+
+ $self->log->warn("log this message!");
+
+=head2 C<hostlist>
+ 
+ Returns a list containing all the hosts.
+
+=head2 C<arg>
+
+ Returns a hash with the default args
+
+=head2 C<callback>
+
+ Returns a ref to the default callback sub-routine.
+
+=head1 FUNCTIONS
+
 =head2 C<make_name_oid>
 
 Takes a list of numeric OIDs and turns them into an mib-object string.
@@ -437,23 +463,6 @@ Takes two arguments: One OID to match against, and the OID to match.
  match_oid("1.3.6.10.1", "1.3.6");    # return 10.1
  match_oid("1.3.6.10",   "1.3.6.11"); # return undef
 
-=head2 C<log>
-
-This returns the Log4perl object that is used for logging:
-
- $self->log->warn("log this message!");
-
-=head2 C<hostlist>
- 
- Returns a list containing all the hosts.
-
-=head2 C<arg>
-
- Returns a hash with the default args
-
-=head2 C<callback>
-
- Returns a ref to the default callback sub-routine.
 
 =head1 The callback method
 
@@ -489,8 +498,34 @@ you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =head1 NOTES
 
+=over 4
+
+=item walk
+
 SNMP::Effective doesn't really do a SNMP native "walk". It makes a series
 of "getnext", which is almost the same as SNMP's walk.
+
+=item set
+
+Example on how to use SNMP::Effective for snmp-set:
+
+ $effective->add(
+    set => [
+        [$oid,$value,$type], # shorthand for SNMP::Effective, safe
+        [$oid,$value],       # even shorter for SNMP::Effective, not safe
+        $SNMP_Varbind_obj,
+        $SNMP_VarList_obj,
+    ]
+ );
+
+The first is a bit shorter than what you usually give SNMP::Varbind, since you
+ommit the IID (second argument).
+
+The second way, is not safe in the sense that it will try to guess which type
+the value is. Only INTEGER and IPADDR is supported for now, and if it doesn't
+match any of them, it falls back on OCTETSTR.
+
+=back
 
 =head1 TODO
 

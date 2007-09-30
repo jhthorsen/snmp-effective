@@ -9,7 +9,8 @@ use SNMP;
 use Tie::Array;
 use constant METHOD => 0;
 use constant OID    => 1;
-use constant SET    => 2;
+use constant VALUE  => 2;
+use constant TYPE   => 3;
 
 our @ISA = qw/Tie::StdArray/;
 
@@ -19,28 +20,38 @@ sub PUSH { #==================================================================
     ### init
     my $self = shift;
     my @args = @_;
+    my @varlist;
 
-    foreach my $r (@args) {
+    for my $r (@args) {
+        my $varbind;
 
         ### test request
-        next unless(ref $r eq 'ARRAY' and $r->[METHOD] and $r->[OID]);
+        next unless(ref $r eq 'ARRAY' and @$r > 1);
         next unless($SNMP::Effective::Dispatch::METHOD{$r->[METHOD]});
 
-        ### fix OID array
-        $r->[OID] = [$r->[OID]] unless(ref $r->[OID] eq 'ARRAY');
+        ### try to guess value type
+        if(defined $r->[VALUE]) {
+            unless($r->[TYPE]) {
+                my $v      = $r->[VALUE];
+                $r->[TYPE] = $v =~ /^ \d+ $/mx                  ? 'INTEGER'
+                           : $v =~ /^ (\d{1,3}\.){1,3} \d+ $/mx ? 'IPADDR'
+                           :                                      'OCTETSTR'
+                           ;
+            }
+        }
 
-        ### setup VarList
-        my @varlist = map  {
-                          ref $_ eq 'ARRAY' ? $_    :
-                          /([0-9\.]+)/mx    ? [$1]  :
-                                              undef ;
-                      } @{$r->[OID]};
+        ### create varbind
+        if(ref $r->[OID] =~ /^SNMP::Var/mx) {
+            $varbind = $r->[OID];
+        }
+        else {
+            $varbind = SNMP::Varbind->new([
+                           $r->[OID], undef, $r->[VALUE], $r->[TYPE]
+                       ]);
+        }
 
-        ### add elements
-        push @$self, [
-                         $r->[METHOD],
-                         SNMP::VarList->new( grep {$_} @varlist ),
-                     ];
+        ### append varbind/list
+        push @$self, [ $r->[METHOD], $varbind ];
     }
 
     ### the end
@@ -74,6 +85,14 @@ it will default to "error" level, and print to STDERR. The component-name
 you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =head1 NOTES
+
+Possible formats of elements pushed onto the array:
+
+ [$method, $oid]
+ [$method, $oid, $value]
+ [$method, $oid, $value, $type]
+ [$method, $Varbind_obj]
+ [$method, $VarList_obj]
 
 =head1 TODO
 

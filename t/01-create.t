@@ -34,7 +34,7 @@ $$host = $effective->_create_session($host);
 
 is(ref $$host, "SNMP::Session", "SNMP session created");
 is($req->[0], "walk", "method is ok");
-is(ref $req->[1], "SNMP::VarList", "VarList defined");
+is(ref $req->[1], "SNMP::Varbind", "VarList defined");
 
 is(SNMP::Effective::match_oid("1.3.6.10", "1.3.6"), 10, "oid match");
 is(SNMP::Effective::make_name_oid("1.3.6.1.2.1.1.1"), "sysDescr", "name match numeric");
