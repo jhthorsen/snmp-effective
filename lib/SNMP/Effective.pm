@@ -33,8 +33,8 @@ our $LOGCONFIG = {
 BEGIN {
     no strict 'refs'; ## no critic
     my %sub2key = qw/
-                      max_sessions    MaxSessions
-                      master_timeout  MasterTimeout
+                      max_sessions    maxsessions
+                      master_timeout  mastertimeout
                       _lock           _dispatch_lock
                       _varlist        _varlist
                       hostlist        _hostlist
@@ -56,10 +56,10 @@ sub new { #===================================================================
 
     ### init
     my $class = shift;
-    my %args  = @_;
+    my %args  = _format_arguments(@_);
     my %self  = (
-                    MaxSessions    => 1,
-                    MasterTimeout  => undef,
+                    maxsessions    => 1,
+                    mastertimeout  => undef,
                     _sessions      => 0,
                     _dispatch_lock => 0,
                     _hostlist      => SNMP::Effective::HostList->new,
@@ -86,18 +86,10 @@ sub add { #===================================================================
 
     ### init
     my $self        = shift;
-    my %in          = @_ or return;
+    my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
     my $varlist     = $self->_varlist;
     my $new_varlist = [];
-
-    ### fix arguments
-    for my $k (keys %in) {
-        my $v   =  delete $in{$k};
-           $k   =  lc $k;
-           $k   =~ s/_//gmx;
-        $in{$k} = $v;
-    }
 
     ### setup host
     if($in{'desthost'} and ref $in{'desthost'} ne 'ARRAY') {
@@ -169,9 +161,12 @@ sub execute { #===============================================================
     ### wrapper for possible faulty alarm...
     eval {
 
+        ### localize alarm
+        local $SIG{'ALRM'} = $SIG{'ALRM'};
+
         ### set alarm
         if($self->master_timeout) {
-            local $SIG{'ALRM'} = sub { die "alarm_clock_timeout" };
+            $SIG{'ALRM'} = sub { die "alarm_clock_timeout" };
             alarm $self->master_timeout;
         }
 
@@ -184,7 +179,7 @@ sub execute { #===============================================================
 
     ### check result from eval
     if($@ and $@ =~ /alarm_clock_timeout/mx) {
-        $self->lock(0);
+        $self->_lock(0);
         $self->master_timeout(0);
         $self->log->error("Master timeout!");
         SNMP::finish();
@@ -292,6 +287,27 @@ sub make_name_oid { #=========================================================
 
 }
 
+sub _format_arguments { #=====================================================
+
+    ### odd number of elements
+    return if(@_ % 2 == 1);
+
+    ### init
+    my %args = @_;
+
+    ### fix arguments
+    for my $k (keys %args) {
+        my $v   =  delete $args{$k};
+           $k   =  lc $k;
+           $k   =~ s/_//gmx;
+        $args{$k} = $v;
+    }
+
+    ### the end
+    return %args;
+}
+
+
 #=============================================================================
 1983;
 __END__
@@ -309,14 +325,14 @@ This document refers to version 0.04 of SNMP::Effective.
  use SNMP::Effective;
  
  my $snmp = SNMP::Effective->new(
-     MaxSessions   => $NUM_POLLERS,
-     MasterTimeout => $TIMEOUT_SECONDS,
+     max_sessions   => $NUM_POLLERS,
+     master_timeout => $TIMEOUT_SECONDS,
  );
  
  $snmp->add(
-     DestHost => $ip,
-     Callback => sub { store_data() },
-     get      => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
+     dest_host => $ip,
+     callback  => sub { store_data() },
+     get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
  );
  # lather, rinse, repeat
  
@@ -361,16 +377,34 @@ network every five minutes (or less) no problem at all.
 The interface to this module is simple, with few options. The sections below
 detail everything you need to know.
 
+=head1 METHODS ARGUMENTS
+
+The method arguments are very flexible. Any of the below acts as the same:
+
+ $obj->method(MyKey   => $value);
+ $obj->method(my_key  => $value);
+ $obj->method(My_Key  => $value);
+ $obj->method(mYK__EY => $value);
+
 =head1 METHODS
 
 =head2 C<new>
 
 This is the object constructor, and returns an SNMP::Effective object.
 
-Arguments: (can be called many ways: DestHost, destHOst, dest_host)
+=head3 Arguments
 
- MaxSessions   => int # maximum number of simultaneous SNMP sessions
- MasterTimeout => int # maximum number of seconds before killing execute
+=over 4
+
+=item C<max_sessions>
+
+Maximum number of simultaneous SNMP sessions.
+
+=item C<mastertimeout>
+
+Maximum number of seconds before killing execute.
+
+=back
 
 All other arguments are passed on to $snmp_effective->add( ... ).
 
@@ -378,33 +412,54 @@ All other arguments are passed on to $snmp_effective->add( ... ).
 
 Adding information about what SNMP data to get and where to get it.
 
-Arguments: (can be called many ways: DestHost, destHOst, dest_host)
+=head3 Arguments
 
- DestHost => []       # array-ref that contains a list of hosts
-                      # either ip-address or hostname
- Arg      => {}       # hash-ref, that is passed on to SNMP::Session
- Callback => sub {}   # the callback which handles the response
- Heap     => ANYTHING # placeholder for extra information
- get      => []       # array-ref that holds a list of OIDs to get
- getnext  => []       # array-ref that holds a list of OIDs to getnext
- walk     => []       # array-ref that holds a list of OIDs to walk
- set      => []       # array-ref that holds a list of OIDs to set + values
+=over 4
+
+=item C<dest_host>
+
+Either a single host, or an array-ref that holds a list of hosts. The format
+is whatever C<SNMP> can handle.
+
+=item C<arg>
+
+A hash-ref of options, passed on to SNMP::Session.
+
+=item C<callback>
+
+A reference to a sub which is called after each time a request is finished.
+
+=item C<heap>
+
+This can hold anything you want. By default it's an empty hash-ref.
+
+=item C<get> / C<getnext> / C<walk>
+
+Either "oid object", "numeric oid", SNMP::Varbind SNMP::VarList or an
+array-ref containing any combination of the above.
+
+=item C<set>
+
+Either a single SNMP::Varbind or a SNMP::VarList or an array-ref of any of
+the above.
+
+=back
 
 This can be called with many different combinations, such as:
 
 =over 4
 
-=item DestHost / any other argument
+=item C<dest_host> / any other argument
 
-This will make changes per DestHost specified. You can use this to change Arg,
-Callback or add OIDs on a per-host basis.
+This will make changes per dest_host specified. You can use this to change arg,
+callback or add OIDs on a per-host basis.
 
-=item get / getnext / walk / set
+=item C<get> / C<getnext> / C<walk> / C<set>
 
-The OID list submitted to C<add()> will be added to all DestHosts, if no
-DestHost is specified.
+The OID list submitted to C<add()> will be added to all dest_host, if no
+dest_host is specified.
 
-=item Arg / Callback
+=item C<arg> / C<callback>
 
 This can be used to alter all hosts' SNMP arguments or callback method.
 
@@ -412,9 +467,10 @@ This can be used to alter all hosts' SNMP arguments or callback method.
 
 =head2 C<execute>
 
-This method starts setting and/or getting data. It will run as long as necessary,
-or until MasterTimeout seconds has passed. Every time some data is set and/or
-retrieved, it will call the callback-method, as defined globally or per host.
+This method starts setting and/or getting data. It will run as long as
+necessary, or until C<master_timeout> seconds has passed. Every time some
+data is set and/or retrieved, it will call the callback-method, as defined
+globally or per host.
 
 =head2 C<master_timeout>
 
@@ -502,30 +558,17 @@ you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =over 4
 
-=item walk
+=item C<walk>
 
 SNMP::Effective doesn't really do a SNMP native "walk". It makes a series
 of "getnext", which is almost the same as SNMP's walk.
 
-=item set
+=item C<set>
 
-Example on how to use SNMP::Effective for snmp-set:
+If you want to use SNMP SET, than you have to build your own varbind:
 
- $effective->add(
-    set => [
-        [$oid,$value,$type], # shorthand for SNMP::Effective, safe
-        [$oid,$value],       # even shorter for SNMP::Effective, not safe
-        $SNMP_Varbind_obj,
-        $SNMP_VarList_obj,
-    ]
- );
-
-The first is a bit shorter than what you usually give SNMP::Varbind, since you
-ommit the IID (second argument).
-
-The second way, is not safe in the sense that it will try to guess which type
-the value is. Only INTEGER and IPADDR is supported for now, and if it doesn't
-match any of them, it falls back on OCTETSTR.
+ $varbind = SNMP::VarBind($oid, $iid, $value, $type);
+ $effective->add( set => $varbind );
 
 =back
 

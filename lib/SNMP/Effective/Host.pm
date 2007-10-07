@@ -18,6 +18,7 @@ BEGIN { ## no critic # for strict
                       varlist   _varlist
                       callback  _callback
                       heap      _heap
+                      log       _log
                   /;
     for my $subname (keys %sub2key) {
         *$subname = sub {
@@ -86,6 +87,7 @@ sub new { #===================================================================
     ### init
     my $class = shift;
     my $host  = shift or return;
+    my $log   = shift;
     my($session, @varlist);
 
     ### tie
@@ -94,6 +96,7 @@ sub new { #===================================================================
     ### the end
     return bless {
         _address  => $host,
+        _log      => $log,
         _session  => \$session,
         _varlist  => \@varlist,
         _callback => sub {},
@@ -159,6 +162,11 @@ Get / set any data you like. By default, it returns a hash-ref, so you can do:
 
  $host->heap->{'mykey'} = "remember this";
            
+=head2 C<log>
+
+Get the same logger as SNMP::Effective use. Ment to be used, if you want to
+log through the same interface as SNMP::Effective.
+
 =head1 DEBUGGING
 
 Debugging is enabled through Log::Log4perl. If nothing else is spesified,
