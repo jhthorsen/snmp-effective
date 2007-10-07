@@ -139,6 +139,7 @@ sub _end { #==================================================================
     ### cleanup
     $self->log->debug("Calling callback for $host...");
     $host->callback->($host, $error);
+    $host->clear_data;
 
     ### the end
     return $self->dispatch($host)

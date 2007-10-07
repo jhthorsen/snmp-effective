@@ -54,6 +54,18 @@ sub data { #==================================================================
     return $self->{'_data'};
 }
 
+sub clear_data { #============================================================
+
+    ### init
+    my $self = shift;
+
+    $self->{'_data'} = {};
+    $self->{'_type'} = {};
+
+    ### the end
+    return;
+}
+
 sub arg { #===================================================================
 
     ### init
@@ -120,6 +132,10 @@ Get SNMP::Session args
 =head2 C<data>
 
 Get the retrieved data 
+
+=head2 C<clear_data>
+
+Remove data from the host cache
 
 =head2 C<address>
 

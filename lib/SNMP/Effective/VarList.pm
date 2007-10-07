@@ -16,7 +16,6 @@ sub PUSH { #==================================================================
     ### init
     my $self = shift;
     my @args = @_;
-    my @varlist;
 
     LIST:
     for my $list (@args) {
@@ -25,6 +24,7 @@ sub PUSH { #==================================================================
 
         my $method = $list->[0];
         my $i      = 0;
+        my @varlist;
 
         OID:
         for my $oid (@$list) {
@@ -37,13 +37,22 @@ sub PUSH { #==================================================================
                        ]);
             }
 
-            ### append oid
+            ### append varbind
+            if(ref $oid eq 'SNMP::Varbind') {
+                push @varlist, $oid;
+                next OID;
+            }
+
+            ### append varlist
             if(ref $oid eq 'SNMP::VarList') {
-                push @$self, [ $method, $oid ];
+                push @varlist, @$oid;
+                next OID;
             }
-            elsif(ref $oid eq 'SNMP::Varbind') {
-                push @$self, [ $method, SNMP::VarList->new($oid) ];
-            }
+        }
+
+        ### add varlist
+        if(@varlist) {
+            push @$self, [ $method, SNMP::VarList->new(@varlist) ];
         }
     }
 
@@ -79,13 +88,13 @@ you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =head1 NOTES
 
-Possible formats of elements pushed onto the array:
+Possible formats of list pushed onto the array:
 
- [$method, $oid]
- [$method, $oid, $value]
- [$method, $oid, $value, $type]
- [$method, $Varbind_obj]
- [$method, $VarList_obj]
+ (
+     [$method1, $oid1],         [$method2, $oid2],
+     [$method1, $Varbind_obj1], [$method2, $Varbind_obj2],
+     [$method1, $VarList_obj1], [$method2, $VarList_obj2],
+ );
 
 =head1 TODO
 
