@@ -544,6 +544,11 @@ requires the following:
 
 =over 4
 
+=item C<Log::Log4Perl>
+
+By default the level of reporting is set to C<error> and will be directed
+to C<STDERR>.
+
 =item C<SNMP>
 
 Note that this is B<not> the same as C<Net::SNMP> on the CPAN. You want the

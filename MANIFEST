@@ -3,8 +3,16 @@ MANIFEST
 META.yml # Will be created by "make dist"
 Makefile.PL
 README
+INSTALL
 lib/SNMP/Effective.pm
+lib/SNMP/Effective/Dispatch.pm
+lib/SNMP/Effective/Host.pm
+lib/SNMP/Effective/HostList.pm
+lib/SNMP/Effective/VarList.pm
 t/00-load.t
+t/01-create.t
 t/boilerplate.t
+t/perlcritic.rc
+t/perlcritic.t
 t/pod-coverage.t
 t/pod.t

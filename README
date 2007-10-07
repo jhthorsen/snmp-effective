@@ -1,38 +1,257 @@
-SNMP-Effective
+NAME
+    SNMP::Effective - An effective SNMP-information-gathering module
 
-INSTALLATION
+VERSION
+    This document refers to version 0.04 of SNMP::Effective.
 
-To install this module, run the following commands:
+SYNOPSIS
+     use SNMP::Effective;
+ 
+     my $snmp = SNMP::Effective->new(
+         MaxSessions   => $NUM_POLLERS,
+         MasterTimeout => $TIMEOUT_SECONDS,
+     );
+ 
+     $snmp->add(
+         DestHost => $ip,
+         Callback => sub { store_data() },
+         get      => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
+     );
+     # lather, rinse, repeat
+ 
+     # retrieve data from all hosts
+     $snmp->execute;
 
-    perl Makefile.PL
-    make
-    make test
-    make install
+DESCRIPTION
+    This module collects information, over SNMP, from many hosts and many
+    OIDs, really fast.
 
+    It is a wrapper around the facilities of "SNMP.pm", which is the Perl
+    interface to the C libraries in the "SNMP" package. Advantages of using
+    this module include:
 
-SUPPORT AND DOCUMENTATION
+    Simple configuration
+        The data structures required by "SNMP" are complex to set up before
+        polling, and parse for results afterwards. This module provides a
+        simpler interface to that configuration by accepting just a list of
+        SNMP OIDs or leaf names.
 
-After installing, you can find documentation for this module with the perldoc command.
+    Parallel execution
+        Many users are not aware that "SNMP" can poll devices asynchronously
+        using a callback system. By specifying your callback routine as in
+        the "SYNOPSIS" section above, many network devices can be polled in
+        parallel, making operations far quicker. Note that this does not use
+        threads.
 
-    perldoc SNMP::Effective
+    It's fast
+        To give one example, "SNMP::Effective" can walk, say, eight indexed
+        OIDs (port status, errors, traffic, etc) for around 300 devices
+        (that's 8500 ports) in under 30 seconds. Storage of that data might
+        take an additional 10 seconds (depending on whether it's to RAM or
+        disk). This makes polling/monitoring your network every five minutes
+        (or less) no problem at all.
 
-You can also look for information at:
+    The interface to this module is simple, with few options. The sections
+    below detail everything you need to know.
 
-    Search CPAN
-        http://search.cpan.org/dist/SNMP-Effective
+METHODS
+  "new"
+    This is the object constructor, and returns an SNMP::Effective object.
 
-    CPAN Request Tracker:
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=SNMP-Effective
+    Arguments: (can be called many ways: DestHost, destHOst, dest_host)
 
-    AnnoCPAN, annotated CPAN documentation:
-        http://annocpan.org/dist/SNMP-Effective
+     MaxSessions   => int # maximum number of simultaneous SNMP sessions
+     MasterTimeout => int # maximum number of seconds before killing execute
 
-    CPAN Ratings:
-        http://cpanratings.perl.org/d/SNMP-Effective
+    All other arguments are passed on to $snmp_effective->add( ... ).
 
-COPYRIGHT AND LICENCE
+  "add"
+    Adding information about what SNMP data to get and where to get it.
 
-Copyright (C) 2007 Jan Henning Thorsen
+    Arguments: (can be called many ways: DestHost, destHOst, dest_host)
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+     DestHost => []       # array-ref that contains a list of hosts
+                          # either ip-address or hostname
+     Arg      => {}       # hash-ref, that is passed on to SNMP::Session
+     Callback => sub {}   # the callback which handles the response
+     Heap     => ANYTHING # placeholder for extra information
+     get      => []       # array-ref that holds a list of OIDs to get
+     getnext  => []       # array-ref that holds a list of OIDs to getnext
+     walk     => []       # array-ref that holds a list of OIDs to walk
+     set      => []       # array-ref that holds a list of OIDs to set + values
+
+    This can be called with many different combinations, such as:
+
+    DestHost / any other argument
+        This will make changes per DestHost specified. You can use this to
+        change Arg, Callback or add OIDs on a per-host basis.
+
+    get / getnext / walk / set
+        The OID list submitted to "add()" will be added to all DestHosts, if
+        no DestHost is specified.
+
+    Arg / Callback
+        This can be used to alter all hosts' SNMP arguments or callback
+        method.
+
+  "execute"
+    This method starts setting and/or getting data. It will run as long as
+    necessary, or until MasterTimeout seconds has passed. Every time some
+    data is set and/or retrieved, it will call the callback-method, as
+    defined globally or per host.
+
+  "master_timeout"
+     Get/Set the master timeout
+
+  "max_sessions"
+     Get/Set the number of max session
+
+  "log"
+    This returns the Log4perl object that is used for logging:
+
+     $self->log->warn("log this message!");
+
+  "hostlist"
+     Returns a list containing all the hosts.
+
+  "arg"
+     Returns a hash with the default args
+
+  "callback"
+     Returns a ref to the default callback sub-routine.
+
+FUNCTIONS
+  "make_name_oid"
+    Takes a list of numeric OIDs and turns them into an mib-object string.
+
+     make_name_oid("1.3.6.1.2.1.1.1"); # return sysDescr
+
+  "make_numeric_oid"
+    Inverse of make_numeric_oid: Takes a list of mib-object strings, and
+    turns them into numeric format.
+
+     make_numeric_oid("sysDescr"); # return .1.3.6.1.2.1.1.1 
+
+  "match_oid"
+    Takes two arguments: One OID to match against, and the OID to match.
+
+     match_oid("1.3.6.10",   "1.3.6");    # return 10
+     match_oid("1.3.6.10.1", "1.3.6");    # return 10.1
+     match_oid("1.3.6.10",   "1.3.6.11"); # return undef
+
+The callback method
+    When "SNMP" is done collecting data from a host, it calls a callback
+    method, provided by the "Callback => sub{}" argument. Here is an example
+    of a callback method:
+
+     sub my_callback {
+         my($host, $error) = @_
+  
+         if($error) {
+             warn "$host failed with this error: $error"
+             return;
+         }
+ 
+         my $data = $host->data;
+ 
+         for my $oid (keys %$data) {
+             print "$host returned oid $oid with this data:\n";
+ 
+             print join "\n\t",
+                   map { "$_ => $data->{$oid}{$_}" }
+                       keys %{ $data->{$oid}{$_} };
+             print "\n";
+         }
+     }
+
+DEBUGGING
+    Debugging is enabled through Log::Log4perl. If nothing else is
+    spesified, it will default to "error" level, and print to STDERR. The
+    component-name you want to change is "SNMP::Effective", inless this
+    module ins inherited.
+
+NOTES
+    walk
+        SNMP::Effective doesn't really do a SNMP native "walk". It makes a
+        series of "getnext", which is almost the same as SNMP's walk.
+
+    set Example on how to use SNMP::Effective for snmp-set:
+
+         $effective->add(
+            set => [
+                [$oid,$value,$type], # shorthand for SNMP::Effective, safe
+                [$oid,$value],       # even shorter for SNMP::Effective, not safe
+                $SNMP_Varbind_obj,
+                $SNMP_VarList_obj,
+            ]
+         );
+
+        The first is a bit shorter than what you usually give SNMP::Varbind,
+        since you ommit the IID (second argument).
+
+        The second way, is not safe in the sense that it will try to guess
+        which type the value is. Only INTEGER and IPADDR is supported for
+        now, and if it doesn't match any of them, it falls back on OCTETSTR.
+
+TODO
+    Improve debugging support
+
+DEPENDENCIES
+    In addition to the contents of the standard Perl distribution, this
+    module requires the following:
+
+    "Log::Log4Perl"
+        By default the level of reporting is set to "error" and will be
+        directed to "STDERR".
+
+    "SNMP"
+        Note that this is not the same as "Net::SNMP" on the CPAN. You want
+        the "SNMP" CPAN distribution or the "SNMP" distribution.
+
+    "Time::HiRes"
+        Perl versions greater than 5.7.3 are supplied with this module.
+
+    "Tie::Array"
+        Perl versions greater than 5.5.0 are supplied with this module.
+
+    "constant" and "overload"
+        Perl versions greater than 5.4.0 will have these modules.
+
+AUTHOR
+    Jan Henning Thorsen, "<pm at flodhest.net>"
+
+BUGS
+    Please report any bugs or feature requests to "bug-snmp-effective at
+    rt.cpan.org", or through the web interface at
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SNMP-Effective>. I will
+    be notified, and then you'll automatically be notified of progress on
+    your bug as I make changes.
+
+SUPPORT
+    You can find documentation for this module with the perldoc command.
+
+        perldoc SNMP::Effective
+
+    You can also look for information at:
+
+    * AnnoCPAN: Annotated CPAN documentation
+        <http://annocpan.org/dist/SNMP-Effective>
+
+    * CPAN Ratings
+        <http://cpanratings.perl.org/d/SNMP-Effective>
+
+    * RT: CPAN's request tracker
+        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=SNMP-Effective>
+
+    * Search CPAN
+        <http://search.cpan.org/dist/SNMP-Effective>
+
+ACKNOWLEDGEMENTS
+    Various contributions by Oliver Gorwits.
+
+COPYRIGHT & LICENSE
+    Copyright 2007 Jan Henning Thorsen, all rights reserved.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+

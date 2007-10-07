@@ -1,0 +1,15 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         SNMP-Effective
+version:      0.04
+version_from: lib/SNMP/Effective.pm
+installdirs:  site
+requires:
+    SNMP:                      0
+    Time::Hires:               0
+    Log::Log4Perl:             0
+    Tie::Array:                0
+
+distribution_type: module
+generated_by: ExtUtils::MakeMaker version 6.30_01
+

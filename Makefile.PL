@@ -9,8 +9,12 @@ WriteMakefile(
     ABSTRACT_FROM       => 'lib/SNMP/Effective.pm',
     PL_FILES            => {},
     PREREQ_PM => {
-        'Test::More' => 0,
+        'SNMP'          => 0,
+        'Time::HiRes'   => 0,
+        'Log::Log4Perl' => 0,
+        'Tie::Array'    => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean               => { FILES => 'SNMP-Effective-*' },
+    realclean           => { FILES => 'Makefile.old' },
 );
