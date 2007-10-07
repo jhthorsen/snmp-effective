@@ -7,10 +7,6 @@ use warnings;
 use strict;
 use SNMP;
 use Tie::Array;
-use constant METHOD => 0;
-use constant OID    => 1;
-use constant VALUE  => 2;
-use constant TYPE   => 3;
 
 our @ISA = qw/Tie::StdArray/;
 
@@ -22,41 +18,32 @@ sub PUSH { #==================================================================
     my @args = @_;
     my @varlist;
 
-    VAR:
-    for my $r (@args) {
-        my $var;
+    LIST:
+    for my $list (@args) {
+        next LIST unless(ref $list eq 'ARRAY' and @$list > 1);
+        next LIST unless($SNMP::Effective::Dispatch::METHOD{$list->[0]});
 
-        ### test request
-        next VAR unless(ref $r eq 'ARRAY' and @$r > 1);
-        next VAR unless($SNMP::Effective::Dispatch::METHOD{$r->[METHOD]});
+        my $method = $list->[0];
+        my $i      = 0;
 
-        ### try to guess value type
-        if(defined $r->[VALUE]) {
-            unless($r->[TYPE]) {
-                my $v      = $r->[VALUE];
-                $r->[TYPE] = $v =~ /^ \d+ $/mx                  ? 'INTEGER'
-                           : $v =~ /^ (\d{1,3}\.){1,3} \d+ $/mx ? 'IPADDR'
-                           :                                      'OCTETSTR'
-                           ;
+        OID:
+        for my $oid (@$list) {
+            next unless($i++); # skip the first element
+
+            ### create varbind
+            if(ref $oid eq '') {
+                $oid = SNMP::Varbind->new([
+                           $oid, # undef, $value, $type
+                       ]);
             }
-        }
 
-        ### create varbind
-        if(ref $r->[OID] eq '') {
-            $var = SNMP::Varbind->new([
-                       $r->[OID], undef, $r->[VALUE], $r->[TYPE]
-                   ]);
-        }
-        else {
-            $var = $r->[OID];
-        }
-
-        ### append var
-        if(ref $var eq 'SNMP::VarList') {
-            push @$self, [ $r->[METHOD], $var ];
-        }
-        elsif(ref $var eq 'SNMP::Varbind') {
-            push @$self, [ $r->[METHOD], SNMP::VarList->new($var) ];
+            ### append oid
+            if(ref $oid eq 'SNMP::VarList') {
+                push @$self, [ $method, $oid ];
+            }
+            elsif(ref $oid eq 'SNMP::Varbind') {
+                push @$self, [ $method, SNMP::VarList->new($oid) ];
+            }
         }
     }
 

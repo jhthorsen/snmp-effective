@@ -182,8 +182,7 @@ sub dispatch { #==============================================================
                           [ "_$request->[0]", $self, $host, $request->[1] ]
                       );
             $log->debug(
-                "\$self->_$request->[0]( ${host}->$snmp_method("
-                .$request->[1]->name .") )"
+                "\$self->_$request->[0]( ${host}->$snmp_method(...) )"
             );
         }
 
