@@ -156,36 +156,36 @@ sub execute { #===============================================================
         return 0;
     }
 
-    $self->log->warn("Execute dispatcher");
+    ### dispatch with master timoeut
+    if(my $timeout = $self->master_timeout) {
+        my $die_msg = "alarm_clock_timeout";
 
-    ### wrapper for possible faulty alarm...
-    eval {
+        $self->log->warn("Execute dispatcher with timeout ($timeout)");
 
-        ### localize alarm
-        local $SIG{'ALRM'} = $SIG{'ALRM'};
+        ### set alarm and call dispatch
+        eval {
+            local $SIG{'ALRM'} = sub { die $die_msg };
+            alarm $timeout;
+            $self->dispatch and SNMP::MainLoop();
+            alarm 0;
+        };
 
-        ### set alarm
-        if($self->master_timeout) {
-            $SIG{'ALRM'} = sub { die "alarm_clock_timeout" };
-            alarm $self->master_timeout;
+        ### check result from eval
+        if($@ and $@ =~ /$die_msg/mx) {
+            $self->_lock(0);
+            $self->master_timeout(0);
+            $self->log->error("Master timeout!");
+            SNMP::finish();
         }
-
-        ### Dispatch
-        $self->dispatch and SNMP::MainLoop();
-
-        ### clear alarm
-        alarm 0 if($self->master_timeout);
-    };
-
-    ### check result from eval
-    if($@ and $@ =~ /alarm_clock_timeout/mx) {
-        $self->_lock(0);
-        $self->master_timeout(0);
-        $self->log->error("Master timeout!");
-        SNMP::finish();
+        elsif($@) {
+            $self->log->logdie($@);
+        }
     }
-    elsif($@) {
-        $self->log->logdie($@);
+
+    ### no master timeout
+    else {
+        $self->log->warn("Execute dispatcher without timeout");
+        $self->dispatch and SNMP::MainLoop();
     }
 
     ### the end
@@ -565,7 +565,7 @@ of "getnext", which is almost the same as SNMP's walk.
 
 =item C<set>
 
-If you want to use SNMP SET, than you have to build your own varbind:
+If you want to use SNMP SET, you have to build your own varbind:
 
  $varbind = SNMP::VarBind($oid, $iid, $value, $type);
  $effective->add( set => $varbind );
