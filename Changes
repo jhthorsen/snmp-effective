@@ -1,6 +1,6 @@
 Revision history for SNMP-Effective
 
-0.04    Sat, 29 Sep 2007 15:20:00 +0200
+1.04    Sat, 29 Sep 2007 15:20:00 +0200
         <pm@flodhest.net>
         * IMPORTANT! Renamed getnext to walk
         * Added getnext, the way it's expected to behave
@@ -9,7 +9,7 @@ Revision history for SNMP-Effective
         * Split the namespaces into each seperate file and added more POD
         * added heap() to ::Host, read the POD for more info
 
-0.03    Mon, 24 Sep 2007 23:14:00 +0200
+1.03    Mon, 24 Sep 2007 23:14:00 +0200
         <pm@flodhest.net>
         * Renamed methods to follow an uniform standard:
          * make_name_oid
@@ -18,14 +18,14 @@ Revision history for SNMP-Effective
         * Added support for Log4perl. The old DEBUG is deprecated
         * t/*tests* works for the first time
 
-0.02    Fri, 21 Sep 2007 16:24:00 +0100
+1.02    Fri, 21 Sep 2007 16:24:00 +0100
         <oliver.gorwits@oucs.ox.ac.uk>
         * Improve alarm handling in SNMP::Effective::new
         * PUSH in SNMP::Effective::VarList must take a list
         * Fix version number in POD
         * Improve documentation
 
-0.01    Sun, 16 Sep 2007 13:30:58 +0200
+1.01    Sun, 16 Sep 2007 13:30:58 +0200
         <pm@flodhest.net>
-        First version, released on an unsuspecting world.
+        First version, after pulling together what thought to be lost.
 

@@ -12,7 +12,7 @@ use overload '@{}' => sub {
                           return \@Array;
                       };
 
-our $VERSION = '0.04';
+our $VERSION = '1.04';
 
 
 sub TIEARRAY { #==============================================================
@@ -43,7 +43,7 @@ SNMP::Effective::HostList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 0.04 of SNMP::Effective::HostList.
+This document refers to version 1.04 of SNMP::Effective::HostList.
 
 =head1 DESCRIPTION
 
