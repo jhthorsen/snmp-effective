@@ -8,14 +8,14 @@ SYNOPSIS
      use SNMP::Effective;
  
      my $snmp = SNMP::Effective->new(
-         MaxSessions   => $NUM_POLLERS,
-         MasterTimeout => $TIMEOUT_SECONDS,
+         max_sessions   => $NUM_POLLERS,
+         master_timeout => $TIMEOUT_SECONDS,
      );
  
      $snmp->add(
-         DestHost => $ip,
-         Callback => sub { store_data() },
-         get      => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
+         dest_host => $ip,
+         callback  => sub { store_data() },
+         get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
      );
      # lather, rinse, repeat
  
@@ -54,49 +54,71 @@ DESCRIPTION
     The interface to this module is simple, with few options. The sections
     below detail everything you need to know.
 
+METHODS ARGUMENTS
+    The method arguments are very flexible. Any of the below acts as the
+    same:
+
+     $obj->method(MyKey   => $value);
+     $obj->method(my_key  => $value);
+     $obj->method(My_Key  => $value);
+     $obj->method(mYK__EY => $value);
+
 METHODS
   "new"
     This is the object constructor, and returns an SNMP::Effective object.
 
-    Arguments: (can be called many ways: DestHost, destHOst, dest_host)
+   Arguments
+    "max_sessions"
+        Maximum number of simultaneous SNMP sessions.
 
-     MaxSessions   => int # maximum number of simultaneous SNMP sessions
-     MasterTimeout => int # maximum number of seconds before killing execute
+    "mastertimeout"
+        Maximum number of seconds before killing execute.
 
     All other arguments are passed on to $snmp_effective->add( ... ).
 
   "add"
     Adding information about what SNMP data to get and where to get it.
 
-    Arguments: (can be called many ways: DestHost, destHOst, dest_host)
+   Arguments
+    "dest_host"
+        Either a single host, or an array-ref that holds a list of hosts.
+        The format is whatever "SNMP" can handle.
 
-     DestHost => []       # array-ref that contains a list of hosts
-                          # either ip-address or hostname
-     Arg      => {}       # hash-ref, that is passed on to SNMP::Session
-     Callback => sub {}   # the callback which handles the response
-     Heap     => ANYTHING # placeholder for extra information
-     get      => []       # array-ref that holds a list of OIDs to get
-     getnext  => []       # array-ref that holds a list of OIDs to getnext
-     walk     => []       # array-ref that holds a list of OIDs to walk
-     set      => []       # array-ref that holds a list of OIDs to set + values
+    "arg"
+        A hash-ref of options, passed on to SNMP::Session.
+
+    "callback"
+        A reference to a sub which is called after each time a request is
+        finished.
+
+    "heap"
+        This can hold anything you want. By default it's an empty hash-ref.
+
+    "get" / "getnext" / "walk"
+        Either "oid object", "numeric oid", SNMP::Varbind SNMP::VarList or
+        an array-ref containing any combination of the above.
+
+    "set"
+        Either a single SNMP::Varbind or a SNMP::VarList or an array-ref of
+        any of the above.
 
     This can be called with many different combinations, such as:
 
-    DestHost / any other argument
-        This will make changes per DestHost specified. You can use this to
-        change Arg, Callback or add OIDs on a per-host basis.
+    "dest_host" / any other argument
+        This will make changes per dest_host specified. You can use this to
+        change arg, callback or add OIDs on a per-host basis.
 
-    get / getnext / walk / set
-        The OID list submitted to "add()" will be added to all DestHosts, if
-        no DestHost is specified.
+    "get" / "getnext" / "walk" / "set"
+        The OID list submitted to "add()" will be added to all dest_host, if
+        no dest_host is specified.
 
-    Arg / Callback
+    "arg" / "callback"
         This can be used to alter all hosts' SNMP arguments or callback
         method.
 
   "execute"
     This method starts setting and/or getting data. It will run as long as
-    necessary, or until MasterTimeout seconds has passed. Every time some
+    necessary, or until "master_timeout" seconds has passed. Every time some
     data is set and/or retrieved, it will call the callback-method, as
     defined globally or per host.
 
@@ -171,27 +193,15 @@ DEBUGGING
     module ins inherited.
 
 NOTES
-    walk
+    "walk"
         SNMP::Effective doesn't really do a SNMP native "walk". It makes a
         series of "getnext", which is almost the same as SNMP's walk.
 
-    set Example on how to use SNMP::Effective for snmp-set:
+    "set"
+        If you want to use SNMP SET, you have to build your own varbind:
 
-         $effective->add(
-            set => [
-                [$oid,$value,$type], # shorthand for SNMP::Effective, safe
-                [$oid,$value],       # even shorter for SNMP::Effective, not safe
-                $SNMP_Varbind_obj,
-                $SNMP_VarList_obj,
-            ]
-         );
-
-        The first is a bit shorter than what you usually give SNMP::Varbind,
-        since you ommit the IID (second argument).
-
-        The second way, is not safe in the sense that it will try to guess
-        which type the value is. Only INTEGER and IPADDR is supported for
-        now, and if it doesn't match any of them, it falls back on OCTETSTR.
+         $varbind = SNMP::VarBind($oid, $iid, $value, $type);
+         $effective->add( set => $varbind );
 
 TODO
     Improve debugging support
