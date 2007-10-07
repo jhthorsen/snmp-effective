@@ -127,7 +127,9 @@ sub add { #===================================================================
             
             ### create new host
             unless($hostlist->{$addr}) {
-                $hostlist->{$addr} = SNMP::Effective::Host->new($addr);
+                $hostlist->{$addr} = SNMP::Effective::Host->new(
+                                         $addr, $self->log,
+                                     );
                 $hostlist->{$addr}->arg($self->arg);
                 $hostlist->{$addr}->callback($self->callback);
             }

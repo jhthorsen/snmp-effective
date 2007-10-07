@@ -24,7 +24,7 @@ my $effective = SNMP::Effective->new(
                     dest_host => "127.0.0.1",
                     get       => "1.3.6.1.2.1.1.1.0", # sysDescr.0
                     getnext   => "sysName",
-                    walk      => "ifNames",
+                    walk      => "ifName",
                     callback  => sub { my_callback(@_) },
                 );
 
@@ -51,12 +51,14 @@ sub my_callback { #===========================================================
     $data = $host->data;
 
     ### print data
-    for my $oid (%$data) {
+    for my $oid (keys %$data) {
+        say("-" x 78);
         say("$host returned oid($oid) with data:");
-        say(join "\n\t", map {
-                             "$_ => $data->{$oid}{$_}";
+        say(join "\n", map {
+                             "\t$_ => $data->{$oid}{$_}";
                          } keys %{ $data->{$oid} }
         );
+        say();
     } 
 
     ### the end
