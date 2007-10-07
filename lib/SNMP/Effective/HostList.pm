@@ -12,6 +12,8 @@ use overload '@{}' => sub {
                           return \@Array;
                       };
 
+our $VERSION = '0.04';
+
 
 sub TIEARRAY { #==============================================================
     return $_[1];

@@ -7,7 +7,8 @@ use strict;
 use warnings;
 use Time::HiRes qw/usleep/;
 
-our %METHOD = (
+our $VERSION = '0.04';
+our %METHOD  = (
     get     => 'get',
     getnext => 'getnext',
     walk    => 'getnext',

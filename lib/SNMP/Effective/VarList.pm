@@ -8,7 +8,8 @@ use strict;
 use SNMP;
 use Tie::Array;
 
-our @ISA = qw/Tie::StdArray/;
+our @ISA     = qw/Tie::StdArray/;
+our $VERSION = '0.04';
 
 
 sub PUSH { #==================================================================

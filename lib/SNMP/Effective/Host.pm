@@ -9,6 +9,8 @@ use overload '""'  => sub { shift()->{'_address'} };
 use overload '${}' => sub { shift()->{'_session'} };
 use overload '@{}' => sub { shift()->{'_varlist'} };
 
+our $VERSION = '0.04';
+
 
 BEGIN { ## no critic # for strict
     no strict 'refs';
