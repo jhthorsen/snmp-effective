@@ -22,12 +22,13 @@ sub PUSH { #==================================================================
     my @args = @_;
     my @varlist;
 
+    VAR:
     for my $r (@args) {
-        my $varbind;
+        my $var;
 
         ### test request
-        next unless(ref $r eq 'ARRAY' and @$r > 1);
-        next unless($SNMP::Effective::Dispatch::METHOD{$r->[METHOD]});
+        next VAR unless(ref $r eq 'ARRAY' and @$r > 1);
+        next VAR unless($SNMP::Effective::Dispatch::METHOD{$r->[METHOD]});
 
         ### try to guess value type
         if(defined $r->[VALUE]) {
@@ -41,17 +42,22 @@ sub PUSH { #==================================================================
         }
 
         ### create varbind
-        if(ref $r->[OID] =~ /^SNMP::Var/mx) {
-            $varbind = $r->[OID];
+        if(ref $r->[OID] eq '') {
+            $var = SNMP::Varbind->new([
+                       $r->[OID], undef, $r->[VALUE], $r->[TYPE]
+                   ]);
         }
         else {
-            $varbind = SNMP::Varbind->new([
-                           $r->[OID], undef, $r->[VALUE], $r->[TYPE]
-                       ]);
+            $var = $r->[OID];
         }
 
-        ### append varbind/list
-        push @$self, [ $r->[METHOD], $varbind ];
+        ### append var
+        if(ref $var eq 'SNMP::VarList') {
+            push @$self, [ $r->[METHOD], $var ];
+        }
+        elsif(ref $var eq 'SNMP::Varbind') {
+            push @$self, [ $r->[METHOD], SNMP::VarList->new($var) ];
+        }
     }
 
     ### the end
