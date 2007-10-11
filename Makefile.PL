@@ -11,7 +11,7 @@ WriteMakefile(
     PREREQ_PM => {
         'SNMP'          => 0,
         'Time::HiRes'   => 0,
-        'Log::Log4Perl' => 0,
+        'Log::Log4perl' => 0,
         'Tie::Array'    => 0,
     },
     dist                => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },

@@ -210,7 +210,7 @@ DEPENDENCIES
     In addition to the contents of the standard Perl distribution, this
     module requires the following:
 
-    "Log::Log4Perl"
+    "Log::Log4perl"
         By default the level of reporting is set to "error" and will be
         directed to "STDERR".
 

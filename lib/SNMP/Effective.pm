@@ -587,7 +587,7 @@ requires the following:
 
 =over 4
 
-=item C<Log::Log4Perl>
+=item C<Log::Log4perl>
 
 By default the level of reporting is set to C<error> and will be directed
 to C<STDERR>.

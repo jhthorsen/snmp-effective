@@ -7,7 +7,7 @@ installdirs:  site
 requires:
     SNMP:                      0
     Time::Hires:               0
-    Log::Log4Perl:             0
+    Log::Log4perl:             0
     Tie::Array:                0
 
 distribution_type: module
