@@ -13,7 +13,7 @@ use SNMP::Effective::HostList;
 use SNMP::Effective::VarList;
 use POSIX qw(:errno_h);
 
-our $VERSION   = '1.04';
+our $VERSION   = '1.05';
 our @ISA       = qw/SNMP::Effective::Dispatch/;
 our %SNMPARG   = (
     Version   => '2c',
@@ -318,7 +318,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 1.04 of SNMP::Effective.
+This document refers to version 1.05 of SNMP::Effective.
 
 =head1 SYNOPSIS
 

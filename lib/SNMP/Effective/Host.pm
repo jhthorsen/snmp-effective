@@ -9,7 +9,7 @@ use overload '""'  => sub { shift()->{'_address'} };
 use overload '${}' => sub { shift()->{'_session'} };
 use overload '@{}' => sub { shift()->{'_varlist'} };
 
-our $VERSION = '1.04';
+our $VERSION = '1.05';
 
 
 BEGIN { ## no critic # for strict
@@ -118,7 +118,7 @@ SNMP::Effective::Host - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 1.04 of SNMP::Effective::Host.
+This document refers to version 1.05 of SNMP::Effective::Host.
 
 =head1 DESCRIPTION
 
