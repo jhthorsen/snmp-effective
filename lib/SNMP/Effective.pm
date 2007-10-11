@@ -137,8 +137,9 @@ sub add { #===================================================================
     ### update hosts
     else {
         push @$varlist, @$new_varlist;
-        $self->arg($in{'arg'});
-        $self->callback($in{'callback'});
+        $self->arg($in{'arg'})           if(ref $in{'arg'} eq 'HASH');
+        $self->callback($in{'callback'}) if(ref $in{'callback'});
+        $self->heap($in{'heap'})         if(defined $in{'heap'});
     }
 
     ### the end
