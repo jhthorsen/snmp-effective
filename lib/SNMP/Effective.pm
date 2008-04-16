@@ -14,7 +14,7 @@ use SNMP::Effective::Logger;
 use Time::HiRes qw/usleep/;
 use POSIX qw(:errno_h);
 
-our $VERSION = '1.05';
+our $VERSION = '1.06';
 our @ISA     = qw/SNMP::Effective::Dispatch/;
 our %SNMPARG = (
     Version   => '2c',
@@ -328,12 +328,12 @@ sub _init_lock { #========================================================
 sub _wait_for_lock { #====================================================
 
     my $self    = shift;
-    my $LOCK_FH = $self->{'_lock_fh'} || $self->_init_lock;
+    my $LOCK_FH = $self->{'_lock_fh'};
     my $tmp;
 
     $self->log->trace("Waiting for lock to unlock...");
-    usleep 1000 until(read $LOCK_FH, $tmp, 1);
-    $self->log->trace("Lock was unlocked, now locked");
+    usleep 10 until(read $LOCK_FH, $tmp, 1);
+    $self->log->trace("The lock got unlocked, but is now locked again");
 
     return $tmp;
 }
@@ -341,11 +341,11 @@ sub _wait_for_lock { #====================================================
 sub _unlock { #==========================================================
 
     my $self    = shift;
-    my $LOCK_FH = $self->{'_lock_fh'} || $self->_init_lock;
+    my $LOCK_FH = $self->{'_lock_fh'};
 
     $self->log->trace("Unlocking lock");
-
     seek $LOCK_FH, 0, 0;
+
     return;
 }
 
@@ -359,7 +359,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective.
+This document refers to version 1.06 of SNMP::Effective.
 
 =head1 SYNOPSIS
 
