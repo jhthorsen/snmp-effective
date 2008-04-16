@@ -5,17 +5,18 @@ package SNMP::Effective;
 
 use warnings;
 use strict;
-use Log::Log4perl;
 use SNMP;
 use SNMP::Effective::Dispatch;
 use SNMP::Effective::Host;
 use SNMP::Effective::HostList;
 use SNMP::Effective::VarList;
+use SNMP::Effective::Logger;
+use Time::HiRes qw/usleep/;
 use POSIX qw(:errno_h);
 
-our $VERSION   = '1.05';
-our @ISA       = qw/SNMP::Effective::Dispatch/;
-our %SNMPARG   = (
+our $VERSION = '1.05';
+our @ISA     = qw/SNMP::Effective::Dispatch/;
+our %SNMPARG = (
     Version   => '2c',
     Community => 'public',
     Timeout   => 1e6,
@@ -35,7 +36,6 @@ BEGIN {
     my %sub2key = qw/
                       max_sessions    maxsessions
                       master_timeout  mastertimeout
-                      _lock           _dispatch_lock
                       _varlist        _varlist
                       hostlist        _hostlist
                       arg             _arg
@@ -61,7 +61,6 @@ sub new { #===================================================================
                     maxsessions    => 1,
                     mastertimeout  => undef,
                     _sessions      => 0,
-                    _dispatch_lock => 0,
                     _hostlist      => SNMP::Effective::HostList->new,
                     _varlist       => [],
                     _arg           => {},
@@ -157,6 +156,9 @@ sub execute { #===============================================================
         return 0;
     }
 
+    ### setup lock
+    $self->_init_lock;
+
     ### dispatch with master timoeut
     if(my $timeout = $self->master_timeout) {
         my $die_msg = "alarm_clock_timeout";
@@ -173,7 +175,6 @@ sub execute { #===============================================================
 
         ### check result from eval
         if($@ and $@ =~ /$die_msg/mx) {
-            $self->_lock(0);
             $self->master_timeout(0);
             $self->log->error("Master timeout!");
             SNMP::finish();
@@ -308,6 +309,45 @@ sub _format_arguments { #=====================================================
     return %args;
 }
 
+sub _init_lock { #========================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'};
+    my $LOCK;
+
+    close $LOCK_FH if(defined $LOCK_FH);
+    open($LOCK_FH, "+<", \$LOCK) or die "Cannot create LOCK\n";
+    print $LOCK_FH "b";
+    seek $LOCK_FH, 0, 0;
+
+    $self->log->trace("Lock is ready and unlocked");
+
+    return($self->{'_lock_fh'} = $LOCK_FH);
+}
+
+sub _wait_for_lock { #====================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'} || $self->_init_lock;
+    my $tmp;
+
+    $self->log->trace("Waiting for lock to unlock...");
+    usleep 1000 until(read $LOCK_FH, $tmp, 1);
+    $self->log->trace("Lock was unlocked, now locked");
+
+    return $tmp;
+}
+
+sub _unlock { #==========================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'} || $self->_init_lock;
+
+    $self->log->trace("Unlocking lock");
+
+    seek $LOCK_FH, 0, 0;
+    return;
+}
 
 #=============================================================================
 1983;

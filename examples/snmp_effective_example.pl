@@ -12,7 +12,7 @@ use SNMP::Effective;
 
 ### set up Log::Log4perl, before SNMP::Effective do
 my $LOG4PERL = {
-    "log4perl.rootLogger"             => "DEBUG, screen",
+    "log4perl.rootLogger"             => "TRACE, screen",
     "log4perl.appender.screen"        => "Log::Log4perl::Appender::Screen",
     "log4perl.appender.screen.layout" => "Log::Log4perl::Layout::SimpleLayout",
 };
@@ -21,11 +21,16 @@ Log::Log4perl->init($LOG4PERL) unless(Log::Log4perl->initialized);
 
 ### set up SNMP::Effective
 my $effective = SNMP::Effective->new(
-                    dest_host => "127.0.0.1",
-                    get       => "1.3.6.1.2.1.1.1.0", # sysDescr.0
-                    getnext   => "sysName",
-                    walk      => "ifName",
-                    callback  => sub { my_callback(@_) },
+                    master_timeout => 5,
+                    dest_host      => "127.0.0.1",
+                    get            => "1.3.6.1.2.1.1.1.0", # sysDescr.0
+                    getnext        => "sysName",
+                    walk           => "sysUpTime",
+                    callback       => sub { my_callback(@_) },
+                    arg            => {
+                        Version   => "2c",
+                        Community => "public",
+                    },
                 );
 
 ### the end

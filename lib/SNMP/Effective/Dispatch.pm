@@ -5,7 +5,6 @@ package SNMP::Effective::Dispatch;
 
 use strict;
 use warnings;
-use Time::HiRes qw/usleep/;
 
 our $VERSION = '1.05';
 our %METHOD  = (
@@ -157,8 +156,7 @@ sub dispatch { #==============================================================
     my $req_id;
 
     ### setup
-    usleep 900 + int rand 200 while($self->_lock);
-    $self->_lock(1);
+    $self->_wait_for_lock;
 
     HOST:
     while($self->{'_sessions'} < $self->max_sessions or $host) {
@@ -205,10 +203,8 @@ sub dispatch { #==============================================================
     }
 
     ### the end
-    $self->_lock(0);
-    $log->debug(
-        "Sessions/max-sessions: "
-       .$self->{'_sessions'} ." < " .$self->max_sessions
+    $log->debug(sprintf "Sessions/max-sessions: %i<%i",
+        $self->{'_sessions'}, $self->max_sessions
     );
     unless(@$hostlist or $self->{'_sessions'}) {
         $log->info("SNMP::finish() is next up");
@@ -216,6 +212,7 @@ sub dispatch { #==============================================================
     }
 
     ### the end
+    $self->_unlock;
     return @$hostlist || $self->{'_sessions'};
 }
 
