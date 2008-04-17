@@ -317,8 +317,6 @@ sub _init_lock { #========================================================
 
     close $LOCK_FH if(defined $LOCK_FH);
     open($LOCK_FH, "+<", \$LOCK) or die "Cannot create LOCK\n";
-    print $LOCK_FH "b";
-    seek $LOCK_FH, 0, 0;
 
     $self->log->trace("Lock is ready and unlocked");
 
@@ -332,7 +330,7 @@ sub _wait_for_lock { #====================================================
     my $tmp;
 
     $self->log->trace("Waiting for lock to unlock...");
-    usleep 10 until(read $LOCK_FH, $tmp, 1);
+    flock $LOCK_FH, 2;
     $self->log->trace("The lock got unlocked, but is now locked again");
 
     return $tmp;
@@ -344,7 +342,7 @@ sub _unlock { #==========================================================
     my $LOCK_FH = $self->{'_lock_fh'};
 
     $self->log->trace("Unlocking lock");
-    seek $LOCK_FH, 0, 0;
+    flock $LOCK_FH, 8;
 
     return;
 }
@@ -695,6 +693,8 @@ L<http://search.cpan.org/dist/SNMP-Effective>
 =head1 ACKNOWLEDGEMENTS
 
 Various contributions by Oliver Gorwits.
+
+Sigurd Weisteen Larsen contributed with a better locking mechanism.
 
 =head1 COPYRIGHT & LICENSE
 
