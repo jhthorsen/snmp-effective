@@ -5,40 +5,39 @@ package SNMP::Effective;
 
 use warnings;
 use strict;
-use Log::Log4perl;
 use SNMP;
+use Net::SNMP;
 use SNMP::Effective::Dispatch;
 use SNMP::Effective::Host;
 use SNMP::Effective::HostList;
 use SNMP::Effective::VarList;
+use SNMP::Effective::Logger;
+use Time::HiRes qw/usleep/;
 use POSIX qw(:errno_h);
 
-our $VERSION   = '1.05';
-our @ISA       = qw/SNMP::Effective::Dispatch/;
-our %SNMPARG   = (
-    Version   => '2c',
-    Community => 'public',
-    Timeout   => 1e6,
-    Retries   => 2
+our $VERSION = '1.06';
+our @ISA     = qw/SNMP::Effective::Dispatch/;
+our %SNMPARG = (
+    #Version   => '2c',
+    #Community => 'public',
+    #Timeout   => 1e6,
+    #Retries   => 2
+
+    -version      => '2c',
+    -community    => 'public',
+    -timeout      => 2,
+    -nonblocking  => 1,
 );
-
-### loglevels: DEBUG, INFO, WARN, ERROR and FATAL
-our $LOGCONFIG = {
-    "log4perl.rootLogger"             => "ERROR, screen",
-    "log4perl.appender.screen"        => "Log::Log4perl::Appender::Screen",
-    "log4perl.appender.screen.layout" => "Log::Log4perl::Layout::SimpleLayout",
-};
-
 
 BEGIN {
     no strict 'refs'; ## no critic
     my %sub2key = qw/
                       max_sessions    maxsessions
                       master_timeout  mastertimeout
-                      _lock           _dispatch_lock
-                      _varlist        _varlist
+                      varlist         _varlist
                       hostlist        _hostlist
                       arg             _arg
+                      heap            _heap
                       callback        _callback
                       log             _logger
                   /;
@@ -61,7 +60,6 @@ sub new { #===================================================================
                     maxsessions    => 1,
                     mastertimeout  => undef,
                     _sessions      => 0,
-                    _dispatch_lock => 0,
                     _hostlist      => SNMP::Effective::HostList->new,
                     _varlist       => [],
                     _arg           => {},
@@ -71,8 +69,7 @@ sub new { #===================================================================
     my $self  = (ref $class) ? $class : bless \%self, $class;
 
     ### initialize Log4perl
-    Log::Log4perl->init($LOGCONFIG) unless(Log::Log4perl->initialized);
-    $self->log( Log::Log4perl->get_logger($class) );
+    $self->log( SNMP::Effective::Logger->new );
 
     ### append other arguments
     $self->add(%args);
@@ -88,7 +85,7 @@ sub add { #===================================================================
     my $self        = shift;
     my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
-    my $varlist     = $self->_varlist;
+    my $varlist     = $self->varlist;
     my $new_varlist = [];
 
     ### setup host
@@ -157,6 +154,9 @@ sub execute { #===============================================================
         return 0;
     }
 
+    ### setup lock
+    $self->_init_lock;
+
     ### dispatch with master timoeut
     if(my $timeout = $self->master_timeout) {
         my $die_msg = "alarm_clock_timeout";
@@ -167,16 +167,16 @@ sub execute { #===============================================================
         eval {
             local $SIG{'ALRM'} = sub { die $die_msg };
             alarm $timeout;
-            $self->dispatch and SNMP::MainLoop();
+           #$self->dispatch and SNMP::MainLoop();
+            $self->dispatch and snmp_dispatcher();
             alarm 0;
         };
 
         ### check result from eval
         if($@ and $@ =~ /$die_msg/mx) {
-            $self->_lock(0);
             $self->master_timeout(0);
             $self->log->error("Master timeout!");
-            SNMP::finish();
+           #SNMP::finish();
         }
         elsif($@) {
             $self->log->logdie($@);
@@ -186,7 +186,8 @@ sub execute { #===============================================================
     ### no master timeout
     else {
         $self->log->warn("Execute dispatcher without timeout");
-        $self->dispatch and SNMP::MainLoop();
+       #$self->dispatch and SNMP::MainLoop();
+        $self->dispatch and snmp_dispatcher();
     }
 
     ### the end
@@ -199,17 +200,19 @@ sub _create_session { #=======================================================
     ### init
     my $self = shift;
     my $host = shift;
-    my $snmp;
 
     ### create session
-    $!    = 0;
-    $snmp = SNMP::Session->new(%SNMPARG, $host->arg);
+   #$!    = 0;
+   #my $snmp = SNMP::Session->new(%SNMPARG, $host->arg);
+    my($snmp, $error) = Net::SNMP->session(%SNMPARG, $host->arg);
 
     ### check error
     unless($snmp) {
-        my($retry, $msg) = $self->_check_errno($!);
-        $self->log->error("SNMP session failed for host $host: $msg");
-        return ($retry) ? '' : undef;
+        #my($retry, $msg) = $self->_check_errno($!);
+        #$self->log->error("SNMP session failed for host $host: $msg");
+        $self->log->error("SNMP session failed for host $host: $error");
+        #return ($retry) ? '' : undef;
+        return;
     }
 
     ### the end
@@ -308,6 +311,43 @@ sub _format_arguments { #=====================================================
     return %args;
 }
 
+sub _init_lock { #========================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'};
+    my $LOCK;
+
+    close $LOCK_FH if(defined $LOCK_FH);
+    open($LOCK_FH, "+<", \$LOCK) or die "Cannot create LOCK\n";
+
+    $self->log->trace("Lock is ready and unlocked");
+
+    return($self->{'_lock_fh'} = $LOCK_FH);
+}
+
+sub _wait_for_lock { #====================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'};
+    my $tmp;
+
+    $self->log->trace("Waiting for lock to unlock...");
+    flock $LOCK_FH, 2;
+    $self->log->trace("The lock got unlocked, but is now locked again");
+
+    return $tmp;
+}
+
+sub _unlock { #==========================================================
+
+    my $self    = shift;
+    my $LOCK_FH = $self->{'_lock_fh'};
+
+    $self->log->trace("Unlocking lock");
+    flock $LOCK_FH, 8;
+
+    return;
+}
 
 #=============================================================================
 1983;
@@ -319,7 +359,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective.
+This document refers to version 1.06 of SNMP::Effective.
 
 =head1 SYNOPSIS
 
@@ -655,6 +695,8 @@ L<http://search.cpan.org/dist/SNMP-Effective>
 =head1 ACKNOWLEDGEMENTS
 
 Various contributions by Oliver Gorwits.
+
+Sigurd Weisteen Larsen contributed with a better locking mechanism.
 
 =head1 COPYRIGHT & LICENSE
 

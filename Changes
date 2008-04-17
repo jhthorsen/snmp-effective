@@ -1,5 +1,10 @@
 Revision history for SNMP-Effective
 
+1.06    Thu, 17 Apr 2008 16:00:00 +0100
+        <pm@flodhest.net>
+        * Added new locking mechanism
+        * You don't need Log::Log4perl, though it is highly suggested
+
 1.05    Thu, 11 Oct 2007 20:15:00 +0200
         <pm@flodhest.net>
         * Fixed typo which makes it difficult to install the module:

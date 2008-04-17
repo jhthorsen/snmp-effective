@@ -31,29 +31,39 @@ sub PUSH { #==================================================================
         for my $oid (@$list) {
             next unless($i++); # skip the first element
 
-            ### create varbind
-            if(ref $oid eq '') {
-                $oid = SNMP::Varbind->new([
-                           $oid, # undef, $value, $type
-                       ]);
-            }
-
-            ### append varbind
-            if(ref $oid eq 'SNMP::Varbind') {
+            if(ref $oid eq 'ARRAY' and @$oid == 3) {
+                $oid->[0] = SNMP::Effective::make_numeric_oid($oid->[0]);
                 push @varlist, $oid;
-                next OID;
+            }
+            elsif(!ref $oid) {
+                $oid = SNMP::Effective::make_numeric_oid($oid);
+                push @varlist, $oid;
             }
 
-            ### append varlist
-            if(ref $oid eq 'SNMP::VarList') {
-                push @varlist, @$oid;
-                next OID;
-            }
+#            ### create varbind
+#            if(ref $oid eq '') {
+#                $oid = SNMP::Varbind->new([
+#                           $oid, # undef, $value, $type
+#                       ]);
+#            }
+#
+#            ### append varbind
+#            if(ref $oid eq 'SNMP::Varbind') {
+#                push @varlist, $oid;
+#                next OID;
+#            }
+#
+#            ### append varlist
+#            if(ref $oid eq 'SNMP::VarList') {
+#                push @varlist, @$oid;
+#                next OID;
+#            }
         }
 
         ### add varlist
         if(@varlist) {
-            push @$self, [ $method, SNMP::VarList->new(@varlist) ];
+            #push @$self, [ $method, SNMP::VarList->new(@varlist) ];
+            push @$self, [ $method, \@varlist ];
         }
     }
 
