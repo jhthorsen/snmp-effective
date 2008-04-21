@@ -5,7 +5,6 @@ package SNMP::Effective::VarList;
 
 use warnings;
 use strict;
-use SNMP;
 use Tie::Array;
 
 our @ISA = qw/Tie::StdArray/;

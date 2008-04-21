@@ -38,6 +38,7 @@ sub _save_data { #============================================================
     my $data  = $$self->var_bind_list;
     my $type  = $$self->var_bind_types;
 
+    ### fallback to all
     $names = [ $$self->var_bind_names ] unless(ref $names);
 
     ### cannot save data

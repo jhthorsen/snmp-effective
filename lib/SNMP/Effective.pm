@@ -5,7 +5,6 @@ package SNMP::Effective;
 
 use warnings;
 use strict;
-use SNMP;
 use Net::SNMP;
 use SNMP::Effective::Dispatch;
 use SNMP::Effective::Host;
@@ -18,9 +17,10 @@ use POSIX qw(:errno_h);
 our $VERSION = '1.06';
 our @ISA     = qw/SNMP::Effective::Dispatch/;
 our %SNMPARG = (
-    Community    => 'public',
-    Version      => 2,
-    NonBlocking  => 1,
+    Community   => 'public',
+    Version     => 2,
+    NonBlocking => 1,
+    Translate   => [ -all => 0 ],
 );
 
 BEGIN {
@@ -214,7 +214,7 @@ sub make_numeric_oid { #======================================================
     ### fix
     for my $i (@input) {
         next if($i =~ /^ [\d\.]+ $/mx);
-        $i = SNMP::translateObj($i);
+        die "Cannot use non-numeric OID\n";
     }
     
     return wantarray ? @input : $input[0];
@@ -226,7 +226,7 @@ sub make_name_oid { #=========================================================
     
     ### fix
     for my $i (@input) {
-        $i = SNMP::translateObj($i) if($i =~ /^ [\d\.]+ $/mx);
+        die "Don't know how to make named OID\n";
     }
     
     return wantarray ? @input : $input[0];
