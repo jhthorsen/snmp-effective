@@ -5,11 +5,9 @@ package SNMP::Effective::Host;
 
 use warnings;
 use strict;
-use overload '""'  => sub { shift()->{'_address'} };
-use overload '${}' => sub { shift()->{'_session'} };
-use overload '@{}' => sub { shift()->{'_varlist'} };
-
-our $VERSION = '1.05';
+use overload '""'  => sub { shift->{'_address'} };
+use overload '${}' => sub { shift->{'_session'} };
+use overload '@{}' => sub { shift->{'_varlist'} };
 
 
 BEGIN { ## no critic # for strict
@@ -21,6 +19,7 @@ BEGIN { ## no critic # for strict
                       callback  _callback
                       heap      _heap
                       log       _log
+                      data      _data
                   /;
     for my $subname (keys %sub2key) {
         *$subname = sub {
@@ -31,63 +30,63 @@ BEGIN { ## no critic # for strict
     }
 }
 
-sub data { #==================================================================
+sub _save_data { #============================================================
 
-    ### init
-    my $self = shift;
+    my $self  = shift;
+    my $refs  = shift;
+    my $names = shift;
+    my $data  = $$self->var_bind_list;
+    my $type  = $$self->var_bind_types;
 
-    ### save data
-    if(@_) {
-        
-        ### init save
-        my $r       = shift;
-        my $ref_oid = shift || '';
-        my $iid     = $r->[1]
-                   || SNMP::Effective::match_oid($r->[0], $ref_oid)
-                   || 1;
+    $names = [ $$self->var_bind_names ] unless(ref $names);
 
-        $ref_oid    =~ s/^\.//mx;
-
-        ### save
-        $self->{'_data'}{$ref_oid}{$iid} = $r->[2];
-        $self->{'_type'}{$ref_oid}{$iid} = $r->[3];
+    ### cannot save data
+    unless(@$names == @$refs) {
+        $self->log->error("Fatal error: refs!=names");
+        return;
     }
 
-    ### the end
-    return $self->{'_data'};
+    DATA:
+    while(@$refs) {
+        my $ref  = shift @$refs  or last DATA;
+        my $name = shift @$names or last DATA;
+        my $iid  = SNMP::Effective::match_oid($name, $ref) || 1;
+
+        ### remove leading dot
+        $ref =~ s/^\.//mx;
+
+        ### save
+        $self->{'_data'}{$ref}{$iid} = $data->{$name};
+        $self->{'_type'}{$ref}{$iid} = $type->{$name};
+    }
+
+    return;
 }
 
-sub clear_data { #============================================================
+sub _clear_data { #===========================================================
 
-    ### init
     my $self = shift;
 
     $self->{'_data'} = {};
     $self->{'_type'} = {};
 
-    ### the end
     return;
 }
 
 sub arg { #===================================================================
 
-    ### init
     my $self = shift;
     my $arg  = shift;
 
-    ### set value
     if(ref $arg eq 'HASH') {
         $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
     }
 
-    ### the end
-    #return wantarray ? (%{$self->{'_arg'}}, DestHost => "$self") : ();
     return wantarray ? (%{$self->{'_arg'}}, -hostname => "$self") : ();
 }
 
 sub new { #===================================================================
     
-    ### init
     my $class = shift;
     my $host  = shift or return;
     my $log   = shift;
@@ -96,7 +95,6 @@ sub new { #===================================================================
     ### tie
     tie @varlist, "SNMP::Effective::VarList";
 
-    ### the end
     return bless {
         _address  => $host,
         _log      => $log,
@@ -119,7 +117,7 @@ SNMP::Effective::Host - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective::Host.
+See SNMP::Effective
 
 =head1 DESCRIPTION
 
@@ -138,10 +136,6 @@ Get SNMP::Session args
 =head2 C<data>
 
 Get the retrieved data 
-
-=head2 C<clear_data>
-
-Remove data from the host cache
 
 =head2 C<address>
 

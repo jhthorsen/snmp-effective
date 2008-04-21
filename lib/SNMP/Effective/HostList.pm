@@ -12,15 +12,13 @@ use overload '@{}' => sub {
                           return \@Array;
                       };
 
-our $VERSION = '1.05';
-
 
 sub TIEARRAY { #==============================================================
     return $_[1];
 }
 
 sub FETCHSIZE { #=============================================================
-    return 0 + keys %{$_[0]};
+    return int keys %{$_[0]};
 }
 
 sub SHIFT { #=================================================================
@@ -43,7 +41,7 @@ SNMP::Effective::HostList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective::HostList.
+See SNMP::Effective
 
 =head1 DESCRIPTION
 

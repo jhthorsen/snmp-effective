@@ -18,15 +18,9 @@ use POSIX qw(:errno_h);
 our $VERSION = '1.06';
 our @ISA     = qw/SNMP::Effective::Dispatch/;
 our %SNMPARG = (
-    #Version   => '2c',
-    #Community => 'public',
-    #Timeout   => 1e6,
-    #Retries   => 2
-
-    -version      => '2c',
-    -community    => 'public',
-    -timeout      => 2,
-    -nonblocking  => 1,
+    Community    => 'public',
+    Version      => 2,
+    NonBlocking  => 1,
 );
 
 BEGIN {
@@ -53,7 +47,6 @@ BEGIN {
 
 sub new { #===================================================================
 
-    ### init
     my $class = shift;
     my %args  = _format_arguments(@_);
     my %self  = (
@@ -74,14 +67,12 @@ sub new { #===================================================================
     ### append other arguments
     $self->add(%args);
 
-    ### the end
     $self->log->debug("Constructed SNMP::Effective Object");
     return $self;
 }
 
 sub add { #===================================================================
 
-    ### init
     my $self        = shift;
     my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
@@ -139,13 +130,11 @@ sub add { #===================================================================
         $self->heap($in{'heap'})         if(defined $in{'heap'});
     }
 
-    ### the end
     return 1;
 }
 
 sub execute { #===============================================================
 
-    ### init
     my $self = shift;
 
     ### no hosts to get data from
@@ -167,7 +156,6 @@ sub execute { #===============================================================
         eval {
             local $SIG{'ALRM'} = sub { die $die_msg };
             alarm $timeout;
-           #$self->dispatch and SNMP::MainLoop();
             $self->dispatch and snmp_dispatcher();
             alarm 0;
         };
@@ -176,7 +164,6 @@ sub execute { #===============================================================
         if($@ and $@ =~ /$die_msg/mx) {
             $self->master_timeout(0);
             $self->log->error("Master timeout!");
-           #SNMP::finish();
         }
         elsif($@) {
             $self->log->logdie($@);
@@ -186,74 +173,33 @@ sub execute { #===============================================================
     ### no master timeout
     else {
         $self->log->warn("Execute dispatcher without timeout");
-       #$self->dispatch and SNMP::MainLoop();
         $self->dispatch and snmp_dispatcher();
     }
 
-    ### the end
     $self->log->warn("Done running the dispatcher");
     return 1;
 }
 
 sub _create_session { #=======================================================
 
-    ### init
     my $self = shift;
     my $host = shift;
 
     ### create session
-   #$!    = 0;
-   #my $snmp = SNMP::Session->new(%SNMPARG, $host->arg);
     my($snmp, $error) = Net::SNMP->session(%SNMPARG, $host->arg);
 
     ### check error
     unless($snmp) {
-        #my($retry, $msg) = $self->_check_errno($!);
-        #$self->log->error("SNMP session failed for host $host: $msg");
         $self->log->error("SNMP session failed for host $host: $error");
-        #return ($retry) ? '' : undef;
         return;
     }
 
-    ### the end
     $self->log->debug("SNMP session created for $host");
     return $snmp;
 }
 
-sub _check_errno { #==========================================================
-    
-    ### init
-    my $err    = pop;
-    my $retry  = 0;
-    my $string = '';
-
-    ### some strange error
-    unless($!) {
-        $string  = "Couldn't resolve hostname";
-    }
-        
-    ### some other error
-    else {
-        $string = "$!";
-        if(
-            $err == EINTR  ||  # Interrupted system call
-            $err == EAGAIN ||  # Resource temp. unavailable
-            $err == ENOMEM ||  # No memory (temporary)
-            $err == ENFILE ||  # Out of file descriptors
-            $err == EMFILE     # Too many open fd's
-        ) {
-            $string .= ' (will retry)';
-            $retry   = 1;
-        }
-    }
-
-    ### the end
-    return($retry, $string);
-}
-
 sub match_oid { #=============================================================
 
-    ### init
     my $p = shift or return;
     my $c = shift or return;
     
@@ -263,7 +209,6 @@ sub match_oid { #=============================================================
 
 sub make_numeric_oid { #======================================================
 
-    ### init
     my @input = @_;
     
     ### fix
@@ -272,13 +217,11 @@ sub make_numeric_oid { #======================================================
         $i = SNMP::translateObj($i);
     }
     
-    ### the end
     return wantarray ? @input : $input[0];
 }
 
 sub make_name_oid { #=========================================================
 
-    ### init
     my @input = @_;
     
     ### fix
@@ -286,7 +229,6 @@ sub make_name_oid { #=========================================================
         $i = SNMP::translateObj($i) if($i =~ /^ [\d\.]+ $/mx);
     }
     
-    ### the end
     return wantarray ? @input : $input[0];
 
 }
@@ -296,7 +238,6 @@ sub _format_arguments { #=====================================================
     ### odd number of elements
     return if(@_ % 2 == 1);
 
-    ### init
     my %args = @_;
 
     ### fix arguments
@@ -307,11 +248,10 @@ sub _format_arguments { #=====================================================
         $args{$k} = $v;
     }
 
-    ### the end
     return %args;
 }
 
-sub _init_lock { #========================================================
+sub _init_lock { #============================================================
 
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
@@ -325,7 +265,7 @@ sub _init_lock { #========================================================
     return($self->{'_lock_fh'} = $LOCK_FH);
 }
 
-sub _wait_for_lock { #====================================================
+sub _wait_for_lock { #========================================================
 
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
@@ -338,7 +278,7 @@ sub _wait_for_lock { #====================================================
     return $tmp;
 }
 
-sub _unlock { #==========================================================
+sub _unlock { #===============================================================
 
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};

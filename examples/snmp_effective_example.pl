@@ -28,7 +28,7 @@ my $effective = SNMP::Effective->new(
                     walk           => "sysUpTime",
                     callback       => sub { my_callback(@_) },
                     arg            => {
-                        Version   => "2c",
+                        Version   => 2,
                         Community => "public",
                     },
                 );

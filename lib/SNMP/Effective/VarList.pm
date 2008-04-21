@@ -8,13 +8,11 @@ use strict;
 use SNMP;
 use Tie::Array;
 
-our @ISA     = qw/Tie::StdArray/;
-our $VERSION = '1.05';
+our @ISA = qw/Tie::StdArray/;
 
 
 sub PUSH { #==================================================================
 
-    ### init
     my $self = shift;
     my @args = @_;
 
@@ -39,35 +37,12 @@ sub PUSH { #==================================================================
                 $oid = SNMP::Effective::make_numeric_oid($oid);
                 push @varlist, $oid;
             }
-
-#            ### create varbind
-#            if(ref $oid eq '') {
-#                $oid = SNMP::Varbind->new([
-#                           $oid, # undef, $value, $type
-#                       ]);
-#            }
-#
-#            ### append varbind
-#            if(ref $oid eq 'SNMP::Varbind') {
-#                push @varlist, $oid;
-#                next OID;
-#            }
-#
-#            ### append varlist
-#            if(ref $oid eq 'SNMP::VarList') {
-#                push @varlist, @$oid;
-#                next OID;
-#            }
         }
 
         ### add varlist
-        if(@varlist) {
-            #push @$self, [ $method, SNMP::VarList->new(@varlist) ];
-            push @$self, [ $method, \@varlist ];
-        }
+        push @$self, [ $method, \@varlist ] if(@varlist);
     }
 
-    ### the end
     return $self->FETCHSIZE;
 }
 
@@ -81,7 +56,7 @@ SNMP::Effective::VarList - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective::VarList.
+See SNMP::Effective
 
 =head1 DESCRIPTION
 

@@ -6,8 +6,7 @@ package SNMP::Effective::Dispatch;
 use strict;
 use warnings;
 
-our $VERSION = '1.05';
-our %METHOD  = (
+our %METHOD = (
     get     => 'get',
     getnext => 'getnext',
     walk    => 'getnext',
@@ -22,115 +21,94 @@ our %METHOD  = (
 
 sub _set { #==================================================================
 
-    ### init
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = $$host->var_bind_list;
+    my $self    = shift;
+    my $host    = shift;
+    my $request = shift;
 
-    ### timeout
-    return $self->_end($host, $$host->error) unless(ref $response);
-
-    ### handle response
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+    if(my $err = $$host->error) {
+        return $self->_end($host, $err);
     }
-
-    ### the end
-    return $self->_end($host);
+    else {
+        $host->_save_data($request);
+        return $self->_end($host);
+    }
 }
 
 sub _get { #==================================================================
 
-    ### init
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = $$host->var_bind_list;
+    my $self    = shift;
+    my $host    = shift;
+    my $request = shift;
 
-    ### timeout
-    return $self->_end($host, $$host->error) unless(ref $response);
-
-    ### handle response
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+    if(my $err = $$host->error) {
+        return $self->_end($host, $err);
     }
-
-    ### the end
-    return $self->_end($host);
+    else {
+        $host->_save_data($request);
+        return $self->_end($host);
+    }
 }
 
 sub _getnext { #==============================================================
 
-    ### init
-    warn join "|", @_;
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = $$host->var_bind_list;
+    my $self    = shift;
+    my $host    = shift;
+    my $request = shift;
 
-    ### timeout
-    return $self->_end($host, $host->error) unless(ref $response);
-
-    ### handle response
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+    if(my $err = $$host->error) {
+        return $self->_end($host, $err);
     }
-
-    ### the end
-    return $self->_end($host);
+    else {
+        $host->_save_data($request);
+        return $self->_end($host);
+    }
 }
 
 sub _walk { #=================================================================
 
-    ### init
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = $$host->var_bind_list;
-    my $i        = 0;
+    my $self    = shift;
+    my $host    = shift;
+    my $request = shift;
+    my(@names, $i);
 
-    ### timeout
-    return $self->_end($host, $host->error) unless(ref $response);
+    ### error
+    if(my $err = $$host->error) {
+        return $self->_end($host, $err);
+    }
 
-    ### handle response
-    while($i < @$response) {
-        my $splice = 2;
+    ### ok
+    else {
+        @names = $$host->var_bind_names;
+        $i     = 0;
+    }
 
-        ### handle result
-        if(my $r = $response->[$i]) {
-            my($cur_oid, $ref_oid) = SNMP::Effective::make_numeric_oid(
-                                         $r->name, $request->[$i]->name
-                                     );
-            $r->[0] = $cur_oid;
-            $splice--;
+    OID:
+    while($i < @names) {
 
-            ### valid oid
-            if(defined SNMP::Effective::match_oid($cur_oid, $ref_oid)) {
-                $host->data($r, $ref_oid);
-                $splice--;
-                $i++;
-            }
+        my $name  = $names[$i];
+        my $ref   = shift @$request or next OID;
+        my $match = SNMP::Effective::match_oid($name, $ref);
+
+        ### valid result
+        if(defined $match) {
+            $host->_save_data([$ref], [$name]);
         }
 
         ### bad result
-        if($splice) {
-            splice @$request, $i, 1;
-            splice @$response, $i, 1;
+        else {
+            splice @names, $i, 1;
         }
+    }
+    continue {
+        $i++;
     }
 
     ### to be continued
-    if(@$response) {
-        #$$host->getnext($response, [ \&_walk, $self, $host, $request ]);
-        $$host->get_next_request(
-            -varbindlist => $response,
-            -callback    => sub { $self->_walk($host, $request) },
+    if(@names) {
+        return $$host->get_next_request(
+            -varbindlist => \@names,
+            -callback    => sub { $self->_walk($host, \@names) },
         );
-        return;
     }
 
     ### no more to get
@@ -141,100 +119,108 @@ sub _walk { #=================================================================
 
 sub _end { #==================================================================
 
-    ### init
     my $self  = shift;
     my $host  = shift;
     my $error = shift;
 
-    die $host if $host;
-
-    ### cleanup
     $self->log->debug("Calling callback for $host...");
     $host->callback->($host, $error);
-    $host->clear_data;
+    $host->_clear_data;
 
-    ### the end
     return $self->dispatch($host)
 }
 
 sub dispatch { #==============================================================
 
-    ### init
     my $self     = shift;
-    my $host     = shift;
+    my $_host    = shift;
     my $hostlist = $self->hostlist;
     my $log      = $self->log;
 
     ### setup
     $self->_wait_for_lock;
 
-    unshift @$hostlist, $host if(ref $host);
-
     HOST:
-    while($self->{'_sessions'} < $self->max_sessions or $host) {
+    while($self->{'_sessions'} < $self->max_sessions or $_host) {
 
-        my($host, $request, $req_id, $snmp_method, $cb_method);
+        my($host, $request);
 
-        CREATE_SNMP_SESSION:
+        ### handle incoming host
+        if($_host) {
+            $host  = $_host;
+            $_host = undef;
+        }
+
+        SETUP_SNMP_SESSION:
         {
-            ### init
-            $host      ||= shift @$hostlist or last CREATE_SNMP_SESSION;
-            $request     = shift @$host     or last CREATE_SNMP_SESSION;
-            $req_id      = undef;
-            $snmp_method = $METHOD{ $request->[0] };
-            $cb_method   = "_" .$request->[0];
+            $host    ||= shift @$hostlist or last SETUP_SNMP_SESSION;
+            $request   = shift @$host     or last SETUP_SNMP_SESSION;
 
             ### fetch or create snmp session
             unless($$host) {
-                unless($$host = $self->_create_session($host)) {
-                    last CREATE_SNMP_SESSION;
+                if($$host = $self->_create_session($host)) {
+                    $self->{'_sessions'}++;
                 }
-                $self->{'_sessions'}++;
+                else {
+                    last SETUP_SNMP_SESSION;
+                }
             }
 
-            ### ready request
-            if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
-                #$req_id = $$host->$snmp_method(
-                #              $request->[1],
-                #              [ "_$request->[0]", $self, $host, $request->[1] ]
-                #          );
-                $$host->debug(0x08);
-                $req_id = $$host->$snmp_method(
-                            -varbindlist => $request->[1],
-                            -callback    => sub { $self->$cb_method(
-                                                $host, $request->[1]
-                                            ) },
-                        );
-                $log->debug( "${host}->$snmp_method(...)" );
-            }
-
-            ### something went wrong
-            unless($req_id) {
-                $log->info(sprintf "Method %s failed on %s: %s",
-                    $snmp_method, $host, $$host->error
-                );
-                last CREATE_SNMP_SESSION;
+            ### make request
+            if(my $error = $self->_snmp_request($host, $request)) {
+                $self->log->error($error);
             }
         }
 
+        ### done with host
         if(ref $host and ref $$host and !ref $request) {
             $self->{'_sessions'}--;
             $log->info("Completed $host");
         }
+
+        ### done with all hosts
+        unless(@$hostlist) {
+            last HOST;
+        }
     }
 
-    ### the end
     $log->debug(sprintf "Sessions/max-sessions: %i<%i",
         $self->{'_sessions'}, $self->max_sessions
     );
+
     unless(@$hostlist or $self->{'_sessions'}) {
-        $log->info("SNMP::finish() is next up");
-       #SNMP::finish();
+        $log->info("Done");
     }
 
-    ### the end
     $self->_unlock;
     return @$hostlist || $self->{'_sessions'};
+}
+
+sub _snmp_request { #=========================================================
+
+    my $self        = shift;
+    my $host        = shift;
+    my $req         = shift;
+    my $self_method = "_" .$req->[0];
+    my $snmp_method = $METHOD{ $req->[0] };
+    my $r;
+
+    #### detect for obvious errors
+    return "SNMP cannot do: $snmp_method" unless($$host->can($snmp_method));
+    return "self cannot do: $self_method" unless($self->can($self_method));
+
+    #$$host->debug(0x02);
+
+    ### ready request
+    $$host->$snmp_method(
+        -varbindlist => $req->[1],
+        -callback    => [ sub { $self->$self_method($host, $req->[1], @_) } ],
+    ) and return; # happy ending
+
+    ### something went wrong
+    return(sprintf
+        "Method %s failed on %s: %s", $snmp_method, $host, $$host->error
+    );
 }
 
 #=============================================================================
@@ -247,7 +233,7 @@ SNMP::Effective::Dispatch - Helper module for SNMP::Effective
 
 =head1 VERSION
 
-This document refers to version 1.05 of SNMP::Effective::Dispatch.
+See SNMP::Effective
 
 =head1 DESCRIPTION
 
