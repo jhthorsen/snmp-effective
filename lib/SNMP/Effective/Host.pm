@@ -81,7 +81,8 @@ sub arg { #===================================================================
     }
 
     ### the end
-    return wantarray ? (%{$self->{'_arg'}}, DestHost => "$self") : ();
+    return %{$self->{'_arg'}}, DestHost => "$self" if(wantarray);
+    return   $self->{'_arg'};
 }
 
 sub new { #===================================================================

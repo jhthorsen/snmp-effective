@@ -23,13 +23,6 @@ our %SNMPARG = (
     Retries   => 2
 );
 
-### loglevels: DEBUG, INFO, WARN, ERROR and FATAL
-our $LOGCONFIG = {
-    "log4perl.rootLogger"             => "ERROR, screen",
-    "log4perl.appender.screen"        => "Log::Log4perl::Appender::Screen",
-    "log4perl.appender.screen.layout" => "Log::Log4perl::Layout::SimpleLayout",
-};
-
 
 BEGIN {
     no strict 'refs'; ## no critic
@@ -69,9 +62,7 @@ sub new { #===================================================================
                 );
     my $self  = (ref $class) ? $class : bless \%self, $class;
 
-    ### initialize Log4perl
-    Log::Log4perl->init($LOGCONFIG) unless(Log::Log4perl->initialized);
-    $self->log( Log::Log4perl->get_logger($class) );
+    $self->log( SNMP::Effective::Logger->new );
 
     ### append other arguments
     $self->add(%args);
