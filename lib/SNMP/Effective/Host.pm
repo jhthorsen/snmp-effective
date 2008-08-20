@@ -83,7 +83,8 @@ sub arg { #===================================================================
         $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
     }
 
-    return wantarray ? (%{$self->{'_arg'}}, -hostname => "$self") : ();
+    return %{$self->{'_arg'}}, -hostname => "$self" if(wantarray);
+    return   $sefl->{'_arg'};
 }
 
 sub new { #===================================================================

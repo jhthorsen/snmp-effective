@@ -127,7 +127,12 @@ sub _end { #==================================================================
     $host->callback->($host, $error);
     $host->_clear_data;
 
-    return $self->dispatch($host)
+    if($self->{'no_retry'} and $error) {
+        return $self->dispatch;
+    }
+    else {
+        return $self->dispatch($host);
+    }
 }
 
 sub dispatch { #==============================================================
@@ -206,8 +211,12 @@ sub _snmp_request { #=========================================================
     my $r;
 
     #### detect for obvious errors
-    return "SNMP cannot do: $snmp_method" unless($$host->can($snmp_method));
-    return "self cannot do: $self_method" unless($self->can($self_method));
+    unless($$host->can($snmp_method)) {
+        return "Net::SNMP cannot do: $snmp_method";
+    }
+    unless($self->can($self_method)) {
+        return "SNMP::Effective cannot do: $self_method";
+    }
 
     #$$host->debug(0x02);
 
