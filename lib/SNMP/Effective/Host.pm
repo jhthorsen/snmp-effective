@@ -32,14 +32,9 @@ BEGIN { ## no critic # for strict
 }
 
 sub data { #==================================================================
-
-    ### init
     my $self = shift;
 
-    ### save data
     if(@_) {
-        
-        ### init save
         my $r       = shift;
         my $ref_oid = shift || '';
         my $iid     = $r->[1]
@@ -48,55 +43,42 @@ sub data { #==================================================================
 
         $ref_oid    =~ s/^\.//mx;
 
-        ### save
         $self->{'_data'}{$ref_oid}{$iid} = $r->[2];
         $self->{'_type'}{$ref_oid}{$iid} = $r->[3];
     }
 
-    ### the end
     return $self->{'_data'};
 }
 
 sub clear_data { #============================================================
-
-    ### init
     my $self = shift;
 
     $self->{'_data'} = {};
     $self->{'_type'} = {};
 
-    ### the end
     return;
 }
 
 sub arg { #===================================================================
-
-    ### init
     my $self = shift;
     my $arg  = shift;
 
-    ### set value
     if(ref $arg eq 'HASH') {
         $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
     }
 
-    ### the end
     return %{$self->{'_arg'}}, DestHost => "$self" if(wantarray);
     return   $self->{'_arg'};
 }
 
 sub new { #===================================================================
-    
-    ### init
     my $class = shift;
     my $host  = shift or return;
     my $log   = shift;
     my($session, @varlist);
 
-    ### tie
     tie @varlist, "SNMP::Effective::VarList";
 
-    ### the end
     return bless {
         _address  => $host,
         _log      => $log,

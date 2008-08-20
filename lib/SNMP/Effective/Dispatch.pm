@@ -16,85 +16,65 @@ our %METHOD  = (
 
 
 sub _set { #==================================================================
-
-    ### init
     my $self     = shift;
     my $host     = shift;
     my $request  = shift;
     my $response = shift;
 
-    ### timeout
     return $self->_end($host, 'Timeout') unless(ref $response);
 
-    ### handle response
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
         $host->data($r, $cur_oid);
     }
 
-    ### the end
     return $self->_end($host);
 }
 
 sub _get { #==================================================================
-
-    ### init
     my $self     = shift;
     my $host     = shift;
     my $request  = shift;
     my $response = shift;
 
-    ### timeout
     return $self->_end($host, 'Timeout') unless(ref $response);
 
-    ### handle response
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
         $host->data($r, $cur_oid);
     }
 
-    ### the end
     return $self->_end($host);
 }
 
 sub _getnext { #==============================================================
-
-    ### init
     my $self     = shift;
     my $host     = shift;
     my $request  = shift;
     my $response = shift;
 
-    ### timeout
     return $self->_end($host, 'Timeout') unless(ref $response);
 
-    ### handle response
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
         $host->data($r, $cur_oid);
     }
 
-    ### the end
     return $self->_end($host);
 }
 
 sub _walk { #=================================================================
-
-    ### init
     my $self     = shift;
     my $host     = shift;
     my $request  = shift;
     my $response = shift;
     my $i        = 0;
 
-    ### timeout
     return $self->_end($host, 'Timeout') unless(ref $response);
 
-    ### handle response
     while($i < @$response) {
         my $splice = 2;
 
-        ### handle result
         if(my $r = $response->[$i]) {
             my($cur_oid, $ref_oid) = SNMP::Effective::make_numeric_oid(
                                          $r->name, $request->[$i]->name
@@ -110,44 +90,34 @@ sub _walk { #=================================================================
             }
         }
 
-        ### bad result
         if($splice) {
             splice @$request, $i, 1;
             splice @$response, $i, 1;
         }
     }
 
-    ### to be continued
     if(@$response) {
         $$host->getnext($response, [ \&_walk, $self, $host, $request ]);
         return;
     }
-
-    ### no more to get
     else {
         return $self->_end($host);
     }
 }
 
 sub _end { #==================================================================
-
-    ### init
     my $self  = shift;
     my $host  = shift;
     my $error = shift;
 
-    ### cleanup
     $self->log->debug("Calling callback for $host...");
     $host->callback->($host, $error);
     $host->clear_data;
 
-    ### the end
     return $self->dispatch($host)
 }
 
 sub dispatch { #==============================================================
-
-    ### init
     my $self     = shift;
     my $host     = shift;
     my $hostlist = $self->hostlist;
@@ -155,13 +125,10 @@ sub dispatch { #==============================================================
     my $request;
     my $req_id;
 
-    ### setup
     $self->_wait_for_lock;
 
     HOST:
     while($self->{'_sessions'} < $self->max_sessions or $host) {
-
-        ### init
         $host         ||= shift @$hostlist or last HOST;
         $request        = shift @$host     or next HOST;
         $req_id         = undef;
@@ -202,7 +169,6 @@ sub dispatch { #==============================================================
         }
     }
 
-    ### the end
     $log->debug(sprintf "Sessions/max-sessions: %i<%i",
         $self->{'_sessions'}, $self->max_sessions
     );
@@ -211,7 +177,6 @@ sub dispatch { #==============================================================
         SNMP::finish();
     }
 
-    ### the end
     $self->_unlock;
     return @$hostlist || $self->{'_sessions'};
 }

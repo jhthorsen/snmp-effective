@@ -46,8 +46,6 @@ BEGIN {
 }
 
 sub new { #===================================================================
-
-    ### init
     my $class = shift;
     my %args  = _format_arguments(@_);
     my %self  = (
@@ -63,18 +61,13 @@ sub new { #===================================================================
     my $self  = (ref $class) ? $class : bless \%self, $class;
 
     $self->log( SNMP::Effective::Logger->new );
+    $self->add( %args );
 
-    ### append other arguments
-    $self->add(%args);
-
-    ### the end
     $self->log->debug("Constructed SNMP::Effective Object");
     return $self;
 }
 
 sub add { #===================================================================
-
-    ### init
     my $self        = shift;
     my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
@@ -132,13 +125,10 @@ sub add { #===================================================================
         $self->heap($in{'heap'})         if(defined $in{'heap'});
     }
 
-    ### the end
     return 1;
 }
 
 sub execute { #===============================================================
-
-    ### init
     my $self = shift;
 
     ### no hosts to get data from
@@ -181,37 +171,29 @@ sub execute { #===============================================================
         $self->dispatch and SNMP::MainLoop();
     }
 
-    ### the end
     $self->log->warn("Done running the dispatcher");
     return 1;
 }
 
 sub _create_session { #=======================================================
-
-    ### init
     my $self = shift;
     my $host = shift;
     my $snmp;
 
-    ### create session
     $!    = 0;
     $snmp = SNMP::Session->new(%SNMPARG, $host->arg);
 
-    ### check error
     unless($snmp) {
         my($retry, $msg) = $self->_check_errno($!);
         $self->log->error("SNMP session failed for host $host: $msg");
         return ($retry) ? '' : undef;
     }
 
-    ### the end
     $self->log->debug("SNMP session created for $host");
     return $snmp;
 }
 
 sub _check_errno { #==========================================================
-    
-    ### init
     my $err    = pop;
     my $retry  = 0;
     my $string = '';
@@ -236,38 +218,27 @@ sub _check_errno { #==========================================================
         }
     }
 
-    ### the end
     return($retry, $string);
 }
 
 sub match_oid { #=============================================================
-
-    ### init
     my $p = shift or return;
     my $c = shift or return;
-    
-    ### check
     return ($p =~ /^ \.? $c \.? (.*)/mx) ? $1 : undef;
 }
 
 sub make_numeric_oid { #======================================================
-
-    ### init
     my @input = @_;
     
-    ### fix
     for my $i (@input) {
         next if($i =~ /^ [\d\.]+ $/mx);
         $i = SNMP::translateObj($i);
     }
     
-    ### the end
     return wantarray ? @input : $input[0];
 }
 
 sub make_name_oid { #=========================================================
-
-    ### init
     my @input = @_;
     
     ### fix
@@ -275,33 +246,26 @@ sub make_name_oid { #=========================================================
         $i = SNMP::translateObj($i) if($i =~ /^ [\d\.]+ $/mx);
     }
     
-    ### the end
     return wantarray ? @input : $input[0];
 
 }
 
 sub _format_arguments { #=====================================================
-
-    ### odd number of elements
     return if(@_ % 2 == 1);
 
-    ### init
     my %args = @_;
 
-    ### fix arguments
     for my $k (keys %args) {
-        my $v   =  delete $args{$k};
-           $k   =  lc $k;
-           $k   =~ s/_//gmx;
+        my $v =  delete $args{$k};
+           $k =  lc $k;
+           $k =~ s/_//gmx;
         $args{$k} = $v;
     }
 
-    ### the end
     return %args;
 }
 
 sub _init_lock { #========================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $LOCK;
@@ -315,7 +279,6 @@ sub _init_lock { #========================================================
 }
 
 sub _wait_for_lock { #====================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $tmp;
@@ -328,7 +291,6 @@ sub _wait_for_lock { #====================================================
 }
 
 sub _unlock { #==========================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
 
