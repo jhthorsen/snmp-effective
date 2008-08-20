@@ -1,20 +1,14 @@
-use strict;
-use warnings;
-use ExtUtils::MakeMaker;
+use inc::Module::Install;
 
-WriteMakefile(
-    NAME          => 'SNMP::Effective',
-    AUTHOR        => 'Jan Henning Thorsen <pm@flodhest.net>',
-    VERSION_FROM  => 'lib/SNMP/Effective.pm',
-    ABSTRACT_FROM => 'lib/SNMP/Effective.pm',
-    dist          => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
-    clean         => { FILES => 'SNMP-Effective-*' },
-    realclean     => { FILES => 'Makefile.old' },
-    PL_FILES      => {},
-    PREREQ_PM     => {
-        'SNMP'          => 0,
-        'Time::HiRes'   => 0,
-        'Tie::Array'    => 0,
-       #'Log::Log4perl' => 0, # suggested
-    },
-);
+name     q(SNMP-Effective);
+all_from q(lib/SNMP/Effective.pm);
+
+requires      q(POSIX)         => 0;
+requires      q(SNMP)          => 0;
+requires      q(Tie::Array)    => 0;
+requires      q(Time::HiRes)   => 0;
+test_requires q(Test::More)    => 0;
+recommends    q(Log::Log4perl) => 0;
+no_index      q(examples)      => 0;
+
+WriteAll;

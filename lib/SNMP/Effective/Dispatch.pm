@@ -20,7 +20,6 @@ our %METHOD = (
 
 
 sub _set { #==================================================================
-
     my $self    = shift;
     my $host    = shift;
     my $request = shift;
@@ -35,7 +34,6 @@ sub _set { #==================================================================
 }
 
 sub _get { #==================================================================
-
     my $self    = shift;
     my $host    = shift;
     my $request = shift;
@@ -50,7 +48,6 @@ sub _get { #==================================================================
 }
 
 sub _getnext { #==============================================================
-
     my $self    = shift;
     my $host    = shift;
     my $request = shift;
@@ -65,18 +62,14 @@ sub _getnext { #==============================================================
 }
 
 sub _walk { #=================================================================
-
     my $self    = shift;
     my $host    = shift;
     my $request = shift;
     my(@names, $i);
 
-    ### error
     if(my $err = $$host->error) {
         return $self->_end($host, $err);
     }
-
-    ### ok
     else {
         @names = $$host->var_bind_names;
         $i     = 0;
@@ -84,17 +77,13 @@ sub _walk { #=================================================================
 
     OID:
     while($i < @names) {
-
         my $name  = $names[$i];
         my $ref   = shift @$request or next OID;
         my $match = SNMP::Effective::match_oid($name, $ref);
 
-        ### valid result
         if(defined $match) {
             $host->_save_data([$ref], [$name]);
         }
-
-        ### bad result
         else {
             splice @names, $i, 1;
         }
@@ -103,22 +92,18 @@ sub _walk { #=================================================================
         $i++;
     }
 
-    ### to be continued
     if(@names) {
         return $$host->get_next_request(
             -varbindlist => \@names,
             -callback    => sub { $self->_walk($host, \@names) },
         );
     }
-
-    ### no more to get
     else {
         return $self->_end($host);
     }
 }
 
 sub _end { #==================================================================
-
     my $self  = shift;
     my $host  = shift;
     my $error = shift;
@@ -136,18 +121,15 @@ sub _end { #==================================================================
 }
 
 sub dispatch { #==============================================================
-
     my $self     = shift;
     my $_host    = shift;
     my $hostlist = $self->hostlist;
     my $log      = $self->log;
 
-    ### setup
     $self->_wait_for_lock;
 
     HOST:
     while($self->{'_sessions'} < $self->max_sessions or $_host) {
-
         my($host, $request);
 
         ### handle incoming host

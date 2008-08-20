@@ -31,7 +31,6 @@ BEGIN { ## no critic # for strict
 }
 
 sub _save_data { #============================================================
-
     my $self  = shift;
     my $refs  = shift;
     my $names = shift;
@@ -56,7 +55,6 @@ sub _save_data { #============================================================
         ### remove leading dot
         $ref =~ s/^\.//mx;
 
-        ### save
         $self->{'_data'}{$ref}{$iid} = $data->{$name};
         $self->{'_type'}{$ref}{$iid} = $type->{$name};
     }
@@ -65,7 +63,6 @@ sub _save_data { #============================================================
 }
 
 sub _clear_data { #===========================================================
-
     my $self = shift;
 
     $self->{'_data'} = {};
@@ -75,7 +72,6 @@ sub _clear_data { #===========================================================
 }
 
 sub arg { #===================================================================
-
     my $self = shift;
     my $arg  = shift;
 
@@ -84,17 +80,15 @@ sub arg { #===================================================================
     }
 
     return %{$self->{'_arg'}}, -hostname => "$self" if(wantarray);
-    return   $sefl->{'_arg'};
+    return   $self->{'_arg'};
 }
 
 sub new { #===================================================================
-    
     my $class = shift;
     my $host  = shift or return;
     my $log   = shift;
     my($session, @varlist);
 
-    ### tie
     tie @varlist, "SNMP::Effective::VarList";
 
     return bless {

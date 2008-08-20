@@ -46,7 +46,6 @@ BEGIN {
 }
 
 sub new { #===================================================================
-
     my $class = shift;
     my %args  = _format_arguments(@_);
     my %self  = (
@@ -61,18 +60,14 @@ sub new { #===================================================================
                 );
     my $self  = (ref $class) ? $class : bless \%self, $class;
 
-    ### initialize Log4perl
     $self->log( SNMP::Effective::Logger->new );
-
-    ### append other arguments
-    $self->add(%args);
+    $self->add( %args );
 
     $self->log->debug("Constructed SNMP::Effective Object");
     return $self;
 }
 
 sub add { #===================================================================
-
     my $self        = shift;
     my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
@@ -134,7 +129,6 @@ sub add { #===================================================================
 }
 
 sub execute { #===============================================================
-
     my $self = shift;
 
     ### no hosts to get data from
@@ -181,14 +175,11 @@ sub execute { #===============================================================
 }
 
 sub _create_session { #=======================================================
-
     my $self = shift;
     my $host = shift;
 
-    ### create session
     my($snmp, $error) = Net::SNMP->session(%SNMPARG, $host->arg);
 
-    ### check error
     unless($snmp) {
         $self->log->error("SNMP session failed for host $host: $error");
         return;
@@ -199,19 +190,14 @@ sub _create_session { #=======================================================
 }
 
 sub match_oid { #=============================================================
-
     my $p = shift or return;
     my $c = shift or return;
-    
-    ### check
     return ($p =~ /^ \.? $c \.? (.*)/mx) ? $1 : undef;
 }
 
 sub make_numeric_oid { #======================================================
-
     my @input = @_;
     
-    ### fix
     for my $i (@input) {
         next if($i =~ /^ [\d\.]+ $/mx);
         die "Cannot use non-numeric OID\n";
@@ -221,7 +207,6 @@ sub make_numeric_oid { #======================================================
 }
 
 sub make_name_oid { #=========================================================
-
     my @input = @_;
     
     ### fix
@@ -234,17 +219,14 @@ sub make_name_oid { #=========================================================
 }
 
 sub _format_arguments { #=====================================================
-
-    ### odd number of elements
     return if(@_ % 2 == 1);
 
     my %args = @_;
 
-    ### fix arguments
     for my $k (keys %args) {
-        my $v   =  delete $args{$k};
-           $k   =  lc $k;
-           $k   =~ s/_//gmx;
+        my $v =  delete $args{$k};
+           $k =  lc $k;
+           $k =~ s/_//gmx;
         $args{$k} = $v;
     }
 
@@ -252,7 +234,6 @@ sub _format_arguments { #=====================================================
 }
 
 sub _init_lock { #============================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $LOCK;
@@ -266,7 +247,6 @@ sub _init_lock { #============================================================
 }
 
 sub _wait_for_lock { #========================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $tmp;
@@ -279,7 +259,6 @@ sub _wait_for_lock { #========================================================
 }
 
 sub _unlock { #===============================================================
-
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
 
