@@ -1,7 +1,4 @@
-
-#=================================
 package SNMP::Effective::HostList;
-#=================================
 
 use warnings;
 use strict;
@@ -15,26 +12,25 @@ use overload '@{}' => sub {
 our $VERSION = '1.05';
 
 
-sub TIEARRAY { #==============================================================
+sub TIEARRAY {
     return $_[1];
 }
 
-sub FETCHSIZE { #=============================================================
+sub FETCHSIZE {
     return 0 + keys %{$_[0]};
 }
 
-sub SHIFT { #=================================================================
+sub SHIFT {
     my $self = shift;
     my $key  = (keys %$self)[0] or return;
     return delete $self->{$key};
 }
 
-sub new { #===================================================================
+sub new {
     return bless {}, $_[0];
 }
 
-#=============================================================================
-1983;
+1;
 __END__
 
 =head1 NAME

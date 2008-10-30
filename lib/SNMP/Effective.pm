@@ -1,7 +1,4 @@
-
-#=======================
 package SNMP::Effective;
-#=======================
 
 use warnings;
 use strict;
@@ -45,7 +42,7 @@ BEGIN {
     }
 }
 
-sub new { #===================================================================
+sub new {
     my $class = shift;
     my %args  = _format_arguments(@_);
     my %self  = (
@@ -67,7 +64,7 @@ sub new { #===================================================================
     return $self;
 }
 
-sub add { #===================================================================
+sub add {
     my $self        = shift;
     my %in          = _format_arguments(@_) or return;
     my $hostlist    = $self->hostlist;
@@ -128,7 +125,7 @@ sub add { #===================================================================
     return 1;
 }
 
-sub execute { #===============================================================
+sub execute {
     my $self = shift;
 
     ### no hosts to get data from
@@ -175,7 +172,7 @@ sub execute { #===============================================================
     return 1;
 }
 
-sub _create_session { #=======================================================
+sub _create_session {
     my $self = shift;
     my $host = shift;
     my $snmp;
@@ -193,7 +190,7 @@ sub _create_session { #=======================================================
     return $snmp;
 }
 
-sub _check_errno { #==========================================================
+sub _check_errno {
     my $err    = pop;
     my $retry  = 0;
     my $string = '';
@@ -221,13 +218,13 @@ sub _check_errno { #==========================================================
     return($retry, $string);
 }
 
-sub match_oid { #=============================================================
+sub match_oid {
     my $p = shift or return;
     my $c = shift or return;
     return ($p =~ /^ \.? $c \.? (.*)/mx) ? $1 : undef;
 }
 
-sub make_numeric_oid { #======================================================
+sub make_numeric_oid {
     my @input = @_;
     
     for my $i (@input) {
@@ -238,7 +235,7 @@ sub make_numeric_oid { #======================================================
     return wantarray ? @input : $input[0];
 }
 
-sub make_name_oid { #=========================================================
+sub make_name_oid {
     my @input = @_;
     
     ### fix
@@ -250,7 +247,7 @@ sub make_name_oid { #=========================================================
 
 }
 
-sub _format_arguments { #=====================================================
+sub _format_arguments {
     return if(@_ % 2 == 1);
 
     my %args = @_;
@@ -265,7 +262,7 @@ sub _format_arguments { #=====================================================
     return %args;
 }
 
-sub _init_lock { #========================================================
+sub _init_lock {
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $LOCK;
@@ -278,7 +275,7 @@ sub _init_lock { #========================================================
     return($self->{'_lock_fh'} = $LOCK_FH);
 }
 
-sub _wait_for_lock { #====================================================
+sub _wait_for_lock {
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
     my $tmp;
@@ -290,7 +287,7 @@ sub _wait_for_lock { #====================================================
     return $tmp;
 }
 
-sub _unlock { #==========================================================
+sub _unlock {
     my $self    = shift;
     my $LOCK_FH = $self->{'_lock_fh'};
 
@@ -300,8 +297,7 @@ sub _unlock { #==========================================================
     return;
 }
 
-#=============================================================================
-1983;
+1;
 __END__
 
 =head1 NAME

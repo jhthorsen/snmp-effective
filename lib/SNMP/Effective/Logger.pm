@@ -1,7 +1,4 @@
-
-#===============================
 package SNMP::Effective::Logger;
-#===============================
 
 use strict;
 use warnings;
@@ -14,12 +11,12 @@ our $LOGCONFIG     = {
 our $AUTOLOAD;
 
 
-BEGIN { #=====================================================================
+BEGIN {
     eval { require Log::Log4perl };
     warn $@ if($@);
 }
 
-sub new { #===================================================================
+sub new {
     if(%{ Log::Log4perl:: }) {
         Log::Log4perl->init($LOGCONFIG) unless(Log::Log4perl->initialized);
         return Log::Log4perl->get_logger(__PACKAGE__);
@@ -29,7 +26,7 @@ sub new { #===================================================================
     }
 }
 
-sub AUTOLOAD { #==============================================================
+sub AUTOLOAD {
 
     my $self   = shift;
     my $msg    = shift || '';
@@ -42,8 +39,7 @@ sub AUTOLOAD { #==============================================================
     return;
 }
 
-#=============================================================================
-1983;
+1;
 __END__
 
 =head1 NAME
