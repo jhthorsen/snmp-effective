@@ -1,5 +1,15 @@
 package SNMP::Effective::HostList;
 
+=head1 NAME
+
+SNMP::Effective::HostList - Helper module for SNMP::Effective
+
+=head1 DESCRIPTION
+
+This is a helper module for SNMP::Effective
+
+=cut
+
 use warnings;
 use strict;
 use overload '""'  => sub { 0 + keys %{ $_[0] } };
@@ -9,16 +19,35 @@ use overload '@{}' => sub {
                           return \@Array;
                       };
 
-our $VERSION = '1.05';
+=head1 METHODS
 
+=head2 new
+
+=cut
+
+sub new {
+    return bless {}, $_[0];
+}
+
+=head2 TIEARRAY
+
+=cut
 
 sub TIEARRAY {
     return $_[1];
 }
 
+=head2 FETCHSIZE
+
+=cut
+
 sub FETCHSIZE {
     return 0 + keys %{$_[0]};
 }
+
+=head2 SHIFT
+
+=cut
 
 sub SHIFT {
     my $self = shift;
@@ -26,55 +55,14 @@ sub SHIFT {
     return delete $self->{$key};
 }
 
-sub new {
-    return bless {}, $_[0];
-}
-
-1;
-__END__
-
-=head1 NAME
-
-SNMP::Effective::HostList - Helper module for SNMP::Effective
-
-=head1 VERSION
-
-This document refers to version 1.05 of SNMP::Effective::HostList.
-
-=head1 DESCRIPTION
-
-This is a helper module for SNMP::Effective
-
-=head1 METHODS
-
-=head2 C<new>
-
-Constructor
-
-=head1 DEBUGGING
-
-Debugging is enabled through Log::Log4perl. If nothing else is spesified,
-it will default to "error" level, and print to STDERR. The component-name
-you want to change is "SNMP::Effective", inless this module ins inherited.
-
-=head1 NOTES
-
-=head1 TODO
-
-=head1 AUTHOR
-
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
-
 =head1 ACKNOWLEDGEMENTS
-
-Various contributions by Oliver Gorwits.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Jan Henning Thorsen, all rights reserved.
+=head1 AUTHOR
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+See L<SNMP::Effective>.
 
 =cut
 
+1;

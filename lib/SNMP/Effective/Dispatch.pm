@@ -265,11 +265,11 @@ This means that you can actually add your custom method if you like.
 The L<walk()> method, is a working example on this, since it's actually
 a series of getnext, seen from L<SNMP>.pm's perspective.
 
-=head1 AUTHOR
-
 =head1 ACKNOWLEDGEMENTS
 
 =head1 COPYRIGHT & LICENSE
+
+=head1 AUTHOR
 
 See L<SNMP::Effective>.
 

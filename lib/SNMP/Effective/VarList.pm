@@ -1,5 +1,15 @@
 package SNMP::Effective::VarList;
 
+=head1 NAME
+
+SNMP::Effective::VarList - Helper module for SNMP::Effective
+
+=head1 DESCRIPTION
+
+This is a helper module for SNMP::Effective
+
+=cut
+
 use warnings;
 use strict;
 use SNMP;
@@ -8,6 +18,9 @@ use Tie::Array;
 our @ISA     = qw/Tie::StdArray/;
 our $VERSION = '1.05';
 
+=head2 PUSH
+
+=cut
 
 sub PUSH {
     my $self = shift;
@@ -55,31 +68,6 @@ sub PUSH {
     return $self->FETCHSIZE;
 }
 
-1;
-__END__
-
-=head1 NAME
-
-SNMP::Effective::VarList - Helper module for SNMP::Effective
-
-=head1 VERSION
-
-This document refers to version 1.05 of SNMP::Effective::VarList.
-
-=head1 DESCRIPTION
-
-This is a helper module for SNMP::Effective
-
-=head1 METHODS
-
-No methods. This class is used for Tieing the list of OIDs.
-
-=head1 DEBUGGING
-
-Debugging is enabled through Log::Log4perl. If nothing else is spesified,
-it will default to "error" level, and print to STDERR. The component-name
-you want to change is "SNMP::Effective", inless this module ins inherited.
-
 =head1 NOTES
 
 Possible formats of list pushed onto the array:
@@ -90,21 +78,14 @@ Possible formats of list pushed onto the array:
      [$method1, $VarList_obj1], [$method2, $VarList_obj2],
  );
 
-=head1 TODO
-
-=head1 AUTHOR
-
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
-
 =head1 ACKNOWLEDGEMENTS
-
-Various contributions by Oliver Gorwits.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Jan Henning Thorsen, all rights reserved.
+=head1 AUTHOR
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+See L<SNMP::Effective>.
 
 =cut
+
+1;
