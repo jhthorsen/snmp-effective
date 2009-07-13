@@ -1,118 +1,35 @@
 package SNMP::Effective::Dispatch;
 
+=head1 NAME
+
+SNMP::Effective::Dispatch - Helper module for SNMP::Effective
+
+=head1 DESCRIPTION
+
+This is a helper module for L<SNMP::Effective>
+
+=cut
+
 use strict;
 use warnings;
 
-our $VERSION = '1.05';
-our %METHOD  = (
+our %METHOD = (
     get     => 'get',
     getnext => 'getnext',
     walk    => 'getnext',
     set     => 'set',
 );
 
+=head1 METHODS
 
-sub _set {
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = shift;
+=head2 dispatch
 
-    return $self->_end($host, 'Timeout') unless(ref $response);
+ $self->dispatch($host);
 
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
-    }
+This method does the actual fetching, and is called by
+L<SNMP::Effective::execute()>.
 
-    return $self->_end($host);
-}
-
-sub _get {
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = shift;
-
-    return $self->_end($host, 'Timeout') unless(ref $response);
-
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
-    }
-
-    return $self->_end($host);
-}
-
-sub _getnext {
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = shift;
-
-    return $self->_end($host, 'Timeout') unless(ref $response);
-
-    for my $r (grep { ref $_ } @$response) {
-        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
-    }
-
-    return $self->_end($host);
-}
-
-sub _walk {
-    my $self     = shift;
-    my $host     = shift;
-    my $request  = shift;
-    my $response = shift;
-    my $i        = 0;
-
-    return $self->_end($host, 'Timeout') unless(ref $response);
-
-    while($i < @$response) {
-        my $splice = 2;
-
-        if(my $r = $response->[$i]) {
-            my($cur_oid, $ref_oid) = SNMP::Effective::make_numeric_oid(
-                                         $r->name, $request->[$i]->name
-                                     );
-            $r->[0] = $cur_oid;
-            $splice--;
-
-            ### valid oid
-            if(defined SNMP::Effective::match_oid($cur_oid, $ref_oid)) {
-                $host->data($r, $ref_oid);
-                $splice--;
-                $i++;
-            }
-        }
-
-        if($splice) {
-            splice @$request, $i, 1;
-            splice @$response, $i, 1;
-        }
-    }
-
-    if(@$response) {
-        $$host->getnext($response, [ \&_walk, $self, $host, $request ]);
-        return;
-    }
-    else {
-        return $self->_end($host);
-    }
-}
-
-sub _end {
-    my $self  = shift;
-    my $host  = shift;
-    my $error = shift;
-
-    $self->log->debug("Calling callback for $host...");
-    $host->callback->($host, $error);
-    $host->clear_data;
-
-    return $self->dispatch($host)
-}
+=cut
 
 sub dispatch {
     my $self     = shift;
@@ -140,10 +57,10 @@ sub dispatch {
         }
 
         ### ready request
-        if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
+        if($$host->can($snmp_method) and $self->can($request->[0])) {
             $req_id = $$host->$snmp_method(
                           $request->[1],
-                          [ "_$request->[0]", $self, $host, $request->[1] ]
+                          [ $request->[0], $self, $host, $request->[1] ]
                       );
             $log->debug(
                 "\$self->_$request->[0]( ${host}->$snmp_method(...) )"
@@ -169,70 +86,193 @@ sub dispatch {
     $log->debug(sprintf "Sessions/max-sessions: %i<%i",
         $self->{'_sessions'}, $self->max_sessions
     );
+
     unless(@$hostlist or $self->{'_sessions'}) {
         $log->info("SNMP::finish() is next up");
         SNMP::finish();
     }
 
     $self->_unlock;
+
     return @$hostlist || $self->{'_sessions'};
 }
 
-1;
-__END__
+=head2 set
 
-=head1 NAME
+ $self->set($host, $request, $response);
 
-SNMP::Effective::Dispatch - Helper module for SNMP::Effective
+This method is called after L<SNMP>.pm has completed it's C<set> call
+on the C<$host>.
 
-=head1 VERSION
+=cut
 
-This document refers to version 1.05 of SNMP::Effective::Dispatch.
+sub set {
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $response = shift;
 
-=head1 DESCRIPTION
+    return $self->end($host, 'Timeout') unless(ref $response);
 
-This is a helper module for SNMP::Effective
+    for my $r (grep { ref $_ } @$response) {
+        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
+        $host->data($r, $cur_oid);
+    }
 
-=head1 METHODS
+    return $self->end($host);
+}
 
-=head2 C<dispatch>
+=head2 get
 
-This method does the actual fetching, and is called by
-SNMP::Effective::execute
+ $self->get($host, $request, $response);
+
+This method is called after L<SNMP>.pm has completed it's C<get> call
+on the C<$host>.
+
+=cut
+
+sub get {
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $response = shift;
+
+    return $self->end($host, 'Timeout') unless(ref $response);
+
+    for my $r (grep { ref $_ } @$response) {
+        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
+        $host->data($r, $cur_oid);
+    }
+
+    return $self->end($host);
+}
+
+=head2 getnext
+
+ $self->getnext($host, $request, $response);
+
+This method is called after L<SNMP>.pm has completed it's C<getnext> call
+on the C<$host>.
+
+=cut
+
+sub getnext {
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $response = shift;
+
+    return $self->end($host, 'Timeout') unless(ref $response);
+
+    for my $r (grep { ref $_ } @$response) {
+        my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
+        $host->data($r, $cur_oid);
+    }
+
+    return $self->end($host);
+}
+
+=head2 walk
+
+ $self->walk($host, $request, $response);
+
+This method is called after L<SNMP>.pm has completed it's C<getnext> call
+on the C<$host>. It will continue sending C<getnext> requests, until an
+OID branch is walked.
+
+=cut
+
+sub walk {
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $response = shift;
+    my $i        = 0;
+
+    return $self->end($host, 'Timeout') unless(ref $response);
+
+    while($i < @$response) {
+        my $splice = 2;
+
+        if(my $r = $response->[$i]) {
+            my($cur_oid, $ref_oid) = SNMP::Effective::make_numeric_oid(
+                                         $r->name, $request->[$i]->name
+                                     );
+            $r->[0] = $cur_oid;
+            $splice--;
+
+            if(defined SNMP::Effective::match_oid($cur_oid, $ref_oid)) {
+                $host->data($r, $ref_oid);
+                $splice--;
+                $i++;
+            }
+        }
+
+        if($splice) {
+            splice @$request, $i, 1;
+            splice @$response, $i, 1;
+        }
+    }
+
+    if(@$response) {
+        $$host->getnext($response, [ \&_walk, $self, $host, $request ]);
+        return;
+    }
+    else {
+        return $self->end($host);
+    }
+}
+
+=head2 end
+
+ $self->end($host, $error);
+
+This method is called from inside one of the callbacks (set, get, getnext
+or walk) and will call the user specified callback:
+
+ $callback->($host, $error);
+
+It will then return to L<dispatcher()>.
+
+=cut
+
+sub end {
+    my $self  = shift;
+    my $host  = shift;
+    my $error = shift;
+
+    $self->log->debug("Calling callback for $host...");
+    $host->callback->($host, $error);
+    $host->clear_data;
+
+    return $self->dispatch($host)
+}
 
 =head1 DEBUGGING
 
-Debugging is enabled through Log::Log4perl. If nothing else is spesified,
+Debugging is enabled through L<Log::Log4perl>. If nothing else is spesified,
 it will default to "error" level, and print to STDERR. The component-name
-you want to change is "SNMP::Effective", inless this module ins inherited.
+you want to change is L<SNMP::Effective>, inless this module ins inherited.
 
 =head1 NOTES
 
 =head2 %SNMP::Effective::Dispatch::METHOD
 
 This hash contains a mapping between $effective->add($key => []),
-SNMP::Effective::Dispatch::_$key() and SNMP.pm's $value method. This means
-that you can actually add your custom method if you like.
+C<SNMP::Effective::Dispatch::$key()> and L<SNMP>.pm's C<$value> method.
+This means that you can actually add your custom method if you like.
 
-The SNMP::Effective::Dispatch::_walk() method, is a working example on this,
-since it's actually a series of getnext, seen from SNMP.pm's perspective.
-
-=head1 TODO
+The L<walk()> method, is a working example on this, since it's actually
+a series of getnext, seen from L<SNMP>.pm's perspective.
 
 =head1 AUTHOR
 
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
-
 =head1 ACKNOWLEDGEMENTS
-
-Various contributions by Oliver Gorwits.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Jan Henning Thorsen, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+See L<SNMP::Effective>.
 
 =cut
 
+1;
