@@ -12,6 +12,7 @@ SNMP::Effective::Utils - Utils for SNMP::Effective
 =cut 
 
 use Moose;
+use SNMP;
 
 =head1 FUNCTIONS
 
