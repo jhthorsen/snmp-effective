@@ -1,4 +1,4 @@
-package SNMP::Effective;
+package SNMP::Effective::Role;
 
 =head1 NAME
 
@@ -14,7 +14,6 @@ SNMP::Effective::Role - Common attributes and methods
 =cut
 
 use Moose::Role;
-use SNMP::Effective::AttributeHelpers::Trait::VarList;
 use SNMP;
 
 =head1 OBJECT ATTRIBUTES
