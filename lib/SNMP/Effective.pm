@@ -76,124 +76,138 @@ The method arguments are very flexible. Any of the below acts as the same:
 
 =cut
 
-use warnings;
-use strict;
+use Moose;
+use MooseX::AttributeHelpers;
 use SNMP;
-use SNMP::Effective::Dispatch;
-use SNMP::Effective::Host;
-use SNMP::Effective::HostList;
-use SNMP::Effective::VarList;
-use SNMP::Effective::Logger;
-use Time::HiRes qw/usleep/;
-use POSIX qw(:errno_h);
+use SNMP::Effective::AttributeHelpers::Trait::HostList;
+use Log::Log4perl;
 
-our $VERSION = '1.06';
-our @ISA     = qw/SNMP::Effective::Dispatch/;
-our %SNMPARG = (
-    Version   => '2c',
-    Community => 'public',
-    Timeout   => 1e6,
-    Retries   => 2
-);
+with qw/SNMP::Effective::Role SNMP::Effective::Lock/;
+
+our $VERSION = '1.99_001';
 
 =head1 OBJECT ATTRIBUTES
 
-=head2 C<master_timeout>
+=head2 master_timeout
 
- Get/Set the master timeout
+ $seconds = $self->master_timeout;
 
-=head2 C<max_sessions>
-
- Get/Set the number of max session
-
-=head2 C<log>
-
-This returns the Log4perl object that is used for logging:
-
- $self->log->warn("log this message!");
-
-=head2 C<hostlist>
- 
- Returns a list containing all the hosts.
-
-=head2 C<arg>
-
- Returns a hash with the default args
-
-=head2 C<callback>
-
- Returns a ref to the default callback sub-routine.
+Maximum seconds for L<execute()> to run. Default is -1, which means forever.
 
 =cut
 
-BEGIN {
-    no strict 'refs'; ## no critic
-    my %sub2key = qw/
-                      max_sessions    maxsessions
-                      master_timeout  mastertimeout
-                      _varlist        _varlist
-                      hostlist        _hostlist
-                      arg             _arg
-                      callback        _callback
-                      log             _logger
-                  /;
+has master_timeout => (
+    is => 'ro',
+    isa => 'Int',
+    default => -1,
+);
 
-    for my $subname (keys %sub2key) {
-        *$subname = sub {
-            my($self, $set)               = @_;
-            $self->{ $sub2key{$subname} } = $set if(defined $set);
-            $self->{ $sub2key{$subname} };
-        }
-    }
-}
+=head2 max_sessions
+
+ $int = $self->max_sessions;
+
+How many concurrent hosts to retrieve data from.
+
+=cut
+
+has max_sessions => (
+    is => 'ro',
+    isa => 'Int',
+    default => 1,
+);
+
+=head2 sessions
+
+ $int = $self->sessions;
+ $self->inc_sessions;
+ $self->dec_sessions;
+
+=cut
+
+has sessions => (
+    traits => [qw/MooseX::AttributeHelpers::Trait::Counter/],
+    is => 'rw',
+    isa => 'Int',
+    handles => {
+        inc => 'inc_sessions',
+        dec => 'dec_sessions',
+        reset => '_reset_session_counter',
+    },
+);
+
+=head2 log
+
+ $log = $self->log;
+
+Returns a log object. Need to comply with the L<Log::Log4perl> api.
+
+=cut
+
+has log => (
+    is => 'ro',
+    isa => 'Any',
+    default => sub {
+        Log::Log4perl->easy_init unless(Log::Log4perl->initialized);
+        Log::Log4perl->get_logger;
+    },
+);
+
+has _method_map => (
+    metaclass => 'Collection::Hash',
+    is => 'ro',
+    isa => 'HashRef',
+    handles => {
+        get => 'get_method',
+        set => 'add_method',
+    },
+    default => sub { +{
+        get     => 'get',
+        getnext => 'getnext',
+        walk    => 'getnext',
+        set     => 'set',
+    } },
+);
+
+has _hostlist => (
+    traits => [qw/SNMP::Effective::AttributeHelpers::Trait::HostList/],
+    provides => {
+        set => 'add_host',
+        get => 'get_host',
+        delete => 'delete_host',
+        shift => 'shift_host',
+        keys => 'hosts',
+        is_empty => 'has_hosts',
+    },
+);
 
 =head1 METHODS
 
-=head2 C<new>
-
-This is the object constructor, and returns an SNMP::Effective object.
-
-=head3 Arguments
-
-=over 4
-
-=item C<max_sessions>
-
-Maximum number of simultaneous SNMP sessions.
-
-=item C<mastertimeout>
-
-Maximum number of seconds before killing execute.
-
-=back
-
-All other arguments are passed on to $snmp_effective->add( ... ).
-
 =cut
 
-sub new {
+sub BUILDARGS {
     my $class = shift;
-    my %args  = _format_arguments(@_);
-    my %self  = (
-                    maxsessions    => 1,
-                    mastertimeout  => undef,
-                    _sessions      => 0,
-                    _hostlist      => SNMP::Effective::HostList->new,
-                    _varlist       => [],
-                    _arg           => {},
-                    _callback      => sub {},
-                    %args,
-                );
-    my $self  = (ref $class) ? $class : bless \%self, $class;
+    my $args  = @_ % 2 ? $_[0] : {@_};
 
-    $self->log( SNMP::Effective::Logger->new );
-    $self->add( %args );
+    my %translate = qw/
+        mastertimeout master_timeout
+        maxsessions   max_sessions
+        desthost      dest_host
+    /;
 
-    $self->log->debug("Constructed SNMP::Effective Object");
-    return $self;
+    for my $k (keys %$args) {
+        my $v =  delete $args->{$k};
+           $k =  lc $k;
+           $k =~ s/_//gmx;
+           $k =  $translate{$k} if($translate{$k});
+        $args->{$k} = $v;
+    }
+
+    return $args;
 }
 
-=head2 C<add>
+=head2 add
+
+ $self->add(%arguments);
 
 Adding information about what SNMP data to get and where to get it.
 
@@ -253,67 +267,71 @@ This can be used to alter all hosts' SNMP arguments or callback method.
 =cut
 
 sub add {
-    my $self        = shift;
-    my %in          = _format_arguments(@_) or return;
-    my $hostlist    = $self->hostlist;
-    my $varlist     = $self->_varlist;
-    my $new_varlist = [];
+    my $self    = shift;
+    my $in      = $self->BUILDARGS(@_) or return;
+    my $varlist = [];
 
-    ### setup host
-    if($in{'desthost'} and ref $in{'desthost'} ne 'ARRAY') {
-        $in{'desthost'} = [$in{'desthost'}];
-        $self->log->info("Adding host(@{ $in{'desthost'} })");
+    # setup host
+    if($in->{'dest_host'}) {
+        unless(ref $in->{'dest_host'} eq 'ARRAY') {
+            $in->{'dest_host'} = [$in->{'dest_host'}];
+        }
+        $self->log->info("Add host(@{ $in->{'dest_host'} })");
     }
 
-    ### setup varlist
-    for my $key (keys %SNMP::Effective::Dispatch::METHOD) {
-        next                    unless($in{$key});
-        $in{$key} = [$in{$key}] unless(ref $in{$key});
+    # setup varlist
+    for my $key (keys %{ $self->_method_map }) {
+        next                        unless($in->{$key});
+        $in->{$key} = [$in->{$key}] unless(ref $in->{$key} eq 'ARRAY');
 
-        ### add to queue
-        if(@{$in{$key}}) {
-            $self->log->info("Adding $key(@{ $in{$key} })");
-            unshift @{$in{$key}}, $key;
-            push @$new_varlist, $in{$key};
+        # add to queue
+        if(@{$in->{$key}}) {
+            $self->log->info("Add $key(@{ $in->{$key} })");
+            unshift @{$in->{$key}}, $key;
+            push @$varlist, $in->{$key};
         }
     }
-    unless(@$new_varlist) {
-        $new_varlist = $varlist;
+
+    unless(@$varlist) {
+        $varlist = $self->_varlist;
     }
 
-    ### add new hosts
-    if(ref $in{'desthost'} eq 'ARRAY') {
-        for my $addr (@{$in{'desthost'}}) {
-            
-            ### create new host
-            unless($hostlist->{$addr}) {
-                $hostlist->{$addr} = SNMP::Effective::Host->new(
-                                         $addr, $self->log,
-                                     );
-                $hostlist->{$addr}->arg($self->arg);
-                $hostlist->{$addr}->callback($self->callback);
+    if(ref $in->{'dest_host'} eq 'ARRAY') { # add
+        for my $addr (@{$in->{'dest_host'}}) {
+            if(my $host = $self->get_host($addr)) {
+                $host->add_varlist(@$varlist);
+                $self->add_host({ # replace existing host
+                    address  => $addr,
+                    arg      => $in->{'arg'}      || $host->arg,
+                    heap     => $in->{'heap'}     || $host->heap,
+                    callback => $in->{'callback'} || $host->callback,
+                    _varlist => $host->_varlist,
+                });
             }
-
-            ### alter created/existing host
-            push @{$hostlist->{$addr}}, @$new_varlist;
-            $hostlist->{$addr}->arg($in{'arg'});
-            $hostlist->{$addr}->callback($in{'callback'});
-            $hostlist->{$addr}->heap($in{'heap'});
+            else {
+                $self->add_host({
+                    address  => $addr,
+                    arg      => $in->{'arg'}      || $self->arg,
+                    heap     => $in->{'heap'}     || $self->heap,
+                    callback => $in->{'callback'} || $self->callback,
+                });
+                $self->get_host($addr)->add_varlist(@$varlist);
+            }
         }
     }
-
-    ### update hosts
-    else {
-        push @$varlist, @$new_varlist;
-        $self->arg($in{'arg'})           if(ref $in{'arg'} eq 'HASH');
-        $self->callback($in{'callback'}) if(ref $in{'callback'});
-        $self->heap($in{'heap'})         if(defined $in{'heap'});
+    else { # update
+        $self->add_varlist($varlist);
+        $self->arg($in->{'arg'})           if($in->{'arg'});
+        $self->callback($in->{'callback'}) if($in->{'callback'});
+        $self->heap($in->{'heap'})         if(defined $in->{'heap'});
     }
 
     return 1;
 }
 
-=head2 C<execute>
+=head2 execute
+
+ $bool = $self->execute;
 
 This method starts setting and/or getting data. It will run as long as
 necessary, or until C<master_timeout> seconds has passed. Every time some
@@ -323,211 +341,132 @@ globally or per host.
 =cut
 
 sub execute {
-    my $self = shift;
+    my $self    = shift;
+    my $timeout = $self->timeout || -1;
 
-    ### no hosts to get data from
-    unless(scalar($self->hostlist)) {
+    # no hosts to get data from
+    unless($self->has_hosts) {
         $self->log->warn("Cannot execute: No hosts defined");
         return 0;
     }
 
-    ### setup lock
-    $self->_init_lock;
-
-    ### dispatch with master timoeut
-    if(my $timeout = $self->master_timeout) {
-        my $die_msg = "alarm_clock_timeout";
-
-        $self->log->warn("Execute dispatcher with timeout ($timeout)");
-
-        ### set alarm and call dispatch
-        eval {
-            local $SIG{'ALRM'} = sub { die $die_msg };
-            alarm $timeout;
-            $self->dispatch and SNMP::MainLoop();
-            alarm 0;
-        };
-
-        ### check result from eval
-        if($@ and $@ =~ /$die_msg/mx) {
-            $self->master_timeout(0);
-            $self->log->error("Master timeout!");
-            SNMP::finish();
-        }
-        elsif($@) {
-            $self->log->logdie($@);
-        }
-    }
-
-    ### no master timeout
-    else {
-        $self->log->warn("Execute dispatcher without timeout");
-        $self->dispatch and SNMP::MainLoop();
-    }
-
+    $self->log->warn("Execute dispatcher with timeout=$timeout");
+    $self->_dispatch and SNMP::MainLoop();
     $self->log->warn("Done running the dispatcher");
+
     return 1;
 }
 
-sub _create_session {
+# called from execute() or _end()
+sub _dispatch {
     my $self = shift;
     my $host = shift;
-    my $snmp;
+    my $log  = $self->log;
+    my($request, $req_id, $snmp_method);
 
-    $!    = 0;
-    $snmp = SNMP::Session->new(%SNMPARG, $host->arg);
+    $self->wait_for_lock;
 
-    unless($snmp) {
-        my($retry, $msg) = $self->_check_errno($!);
-        $self->log->error("SNMP session failed for host $host: $msg");
-        return ($retry) ? '' : undef;
+    HOST:
+    while($self->sessions < $self->max_sessions or $host) {
+        $host      ||= $self->shift_host or last HOST;
+        $request     = shift @$host      or next HOST;
+        $snmp_method = $self->get_method($request->[0]);
+        $req_id      = undef;
+
+        unless($host->has_session) {
+            $self->inc_sessions;
+        }
+        unless($host->session) {
+            next HOST;
+        }
+
+        # ready request
+        if($$host->can($snmp_method)) {
+            $req_id = $$host->$snmp_method(
+                          $request->[1],
+                          [ $request->[0], $self, $host, $request->[1] ]
+                      );
+            $log->debug(
+                "\$self->_$request->[0]( ${host}->$snmp_method(...) )"
+            );
+        }
+
+        # something went wrong
+        unless($req_id) {
+            $log->info("Method $request->[0] failed \@ $host");
+            next HOST;
+        }
     }
-
-    $self->log->debug("SNMP session created for $host");
-    return $snmp;
-}
-
-sub _check_errno {
-    my $err    = pop;
-    my $retry  = 0;
-    my $string = '';
-
-    ### some strange error
-    unless($!) {
-        $string  = "Couldn't resolve hostname";
-    }
-        
-    ### some other error
-    else {
-        $string = "$!";
-        if(
-            $err == EINTR  ||  # Interrupted system call
-            $err == EAGAIN ||  # Resource temp. unavailable
-            $err == ENOMEM ||  # No memory (temporary)
-            $err == ENFILE ||  # Out of file descriptors
-            $err == EMFILE     # Too many open fd's
-        ) {
-            $string .= ' (will retry)';
-            $retry   = 1;
+    continue {
+        if($host->has_session and !ref $request) {
+            $self->dec_sessions;
+            $log->info("Completed $host");
+        }
+        if($req_id or @$host) {
+            $host = undef;
         }
     }
 
-    return($retry, $string);
-}
+    $log->debug(sprintf "Sessions/max-sessions: %i<%i",
+        $self->sessions, $self->max_sessions
+    );
 
-=head1 FUNCTIONS
-
-=head2 C<match_oid>
-
-Takes two arguments: One OID to match against, and the OID to match.
-
- match_oid("1.3.6.10",   "1.3.6");    # return 10
- match_oid("1.3.6.10.1", "1.3.6");    # return 10.1
- match_oid("1.3.6.10",   "1.3.6.11"); # return undef
-
-=cut
-
-sub match_oid {
-    my $p = shift or return;
-    my $c = shift or return;
-    return ($p =~ /^ \.? $c \.? (.*)/mx) ? $1 : undef;
-}
-
-=head2 C<make_numeric_oid>
-
-Inverse of make_numeric_oid: Takes a list of mib-object strings, and turns
-them into numeric format.
-
- make_numeric_oid("sysDescr"); # return .1.3.6.1.2.1.1.1 
-
-=cut
-
-sub make_numeric_oid {
-    my @input = @_;
-    
-    for my $i (@input) {
-        next if($i =~ /^ [\d\.]+ $/mx);
-        $i = SNMP::translateObj($i);
-    }
-    
-    return wantarray ? @input : $input[0];
-}
-
-=head2 C<make_name_oid>
-
-Takes a list of numeric OIDs and turns them into an mib-object string.
-
- make_name_oid("1.3.6.1.2.1.1.1"); # return sysDescr
-
-=cut
-
-sub make_name_oid {
-    my @input = @_;
-    
-    ### fix
-    for my $i (@input) {
-        $i = SNMP::translateObj($i) if($i =~ /^ [\d\.]+ $/mx);
-    }
-    
-    return wantarray ? @input : $input[0];
-
-}
-
-sub _format_arguments {
-    return if(@_ % 2 == 1);
-
-    my %args = @_;
-
-    for my $k (keys %args) {
-        my $v =  delete $args{$k};
-           $k =  lc $k;
-           $k =~ s/_//gmx;
-        $args{$k} = $v;
+    unless($self->hosts or $self->sessions) {
+        $log->info("SNMP::finish() is next up");
+        SNMP::finish();
     }
 
-    return %args;
+    $self->unlock;
+
+    return $self->hosts || $self->sessions;
 }
 
-sub _init_lock {
-    my $self    = shift;
-    my $LOCK_FH = $self->{'_lock_fh'};
-    my $LOCK;
+# called from inside a dispatch callback
+sub _end {
+    my $self  = shift;
+    my $host  = shift;
+    my $error = shift;
 
-    close $LOCK_FH if(defined $LOCK_FH);
-    open($LOCK_FH, "+<", \$LOCK) or die "Cannot create LOCK\n";
+    $self->log->debug("Callback for $host...");
+    $host->($host, $error);
+    $host->clear_data;
 
-    $self->log->trace("Lock is ready and unlocked");
-
-    return($self->{'_lock_fh'} = $LOCK_FH);
+    return $self->_dispatch($host)
 }
 
-sub _wait_for_lock {
-    my $self    = shift;
-    my $LOCK_FH = $self->{'_lock_fh'};
-    my $tmp;
+=head2 add_host
 
-    $self->log->trace("Waiting for lock to unlock...");
-    flock $LOCK_FH, 2;
-    $self->log->trace("The lock got unlocked, but is now locked again");
+ $self->add_host($host_obj);
+ $self->add_host([$hostname, %args]);
+ $self->add_host(\%args);
 
-    return $tmp;
-}
+=head2 get_host
 
-sub _unlock {
-    my $self    = shift;
-    my $LOCK_FH = $self->{'_lock_fh'};
+ $host_obj = $self->get_host($hostname);
 
-    $self->log->trace("Unlocking lock");
-    flock $LOCK_FH, 8;
+=head2 delete_host
 
-    return;
-}
+ $host_obj = $self->delete_host($hostname);
+
+=head2 hosts
+
+ @hostnames = $self->hosts;
+
+=head2 add_method
+
+ $self->add_method($dispatch_method => $snmp_method);
+
+=head2 get_method
+
+ $snmp_method = $self->get_method($dispatch_method);
+
+=cut
 
 =head1 The callback method
 
 When C<SNMP> is done collecting data from a host, it calls a callback
-method, provided by the C<< Callback => sub{} >> argument. Here is an example of a
-callback method:
+method, provided by the C<< Callback => sub{} >> argument. Here is an
+example of a callback method:
 
  sub my_callback {
      my($host, $error) = @_
@@ -557,52 +496,28 @@ you want to change is "SNMP::Effective", inless this module ins inherited.
 
 =head1 NOTES
 
-=head2 C<walk>
+=head2 C<walk()>
 
 SNMP::Effective doesn't really do a SNMP native "walk". It makes a series
 of "getnext", which is almost the same as SNMP's walk.
 
-=head2 C<set>
+=head2 C<set()>
 
 If you want to use SNMP SET, you have to build your own varbind:
 
  $varbind = SNMP::VarBind($oid, $iid, $value, $type);
  $effective->add( set => $varbind );
 
-=head1 DEPENDENCIES
+=head2 Method map
 
-In addition to the contents of the standard Perl distribution, this module
-requires the following:
+This hash contains a mapping between $effective->add($key => []),
+C<SNMP::Effective::Dispatch::$key()> and L<SNMP>.pm's C<$value> method.
+This means that you can actually add your custom method if you like.
 
-=over 4
+The L<walk()> method, is a working example on this, since it's actually
+a series of getnext, seen from L<SNMP>.pm's perspective.
 
-=item L<Log::Log4perl>
-
-By default the level of reporting is set to C<error> and will be directed
-to C<STDERR>.
-
-=item L<SNMP>
-
-Note that this is B<not> the same as C<Net::SNMP> on the CPAN. You want the
-C<SNMP> CPAN distribution or the C<SNMP> distribution.
-
-=item L<Time::HiRes>
-
-Perl versions greater than C<5.7.3> are supplied with this module.
-
-=item L<Tie::Array>
-
-Perl versions greater than C<5.5.0> are supplied with this module.
-
-=item L<constant> and L<overload>
-
-Perl versions greater than C<5.4.0> will have these modules.
-
-=back
-
-=head1 AUTHOR
-
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
+Use L<add_method()> and L<get_method()> to manipulate this behaviour.
 
 =head1 BUGS
 
@@ -611,34 +526,6 @@ C<bug-snmp-effective at rt.cpan.org>, or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SNMP-Effective>.
 I will be notified, and then you'll automatically be notified of progress on
 your bug as I make changes.
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-  perldoc SNMP::Effective
-
-You can also look for information at:
-
-=over 4
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/SNMP-Effective>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/SNMP-Effective>
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=SNMP-Effective>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/SNMP-Effective>
-
-=back
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -652,6 +539,10 @@ Copyright 2007 Jan Henning Thorsen, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
+
+=head1 AUTHOR
+
+Jan Henning Thorsen, C<< <pm at flodhest.net> >>
 
 =cut
 

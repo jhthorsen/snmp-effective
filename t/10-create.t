@@ -3,19 +3,21 @@
 use strict;
 use warnings;
 use lib qw(./lib);
-use Test::More tests => 9;
+use Test::More tests => 7;
 
 BEGIN {
     use_ok( 'SNMP::Effective' );
+    no warnings 'redefine';
+    *SNMP::_new_session = sub { 42 };
 }
 
 my $effective = SNMP::Effective->new;
 my @host      = qw/10.1.1.2 10.1.1.3/;
 my @walk      = qw/sysDescr/;
 my $timeout   = 3;
+my($host, $req);
 
-ok($effective, 'object not constructed');
-
+ok($effective, 'object constructed');
 
 $effective->add(
     Dest_Host => \@host,
@@ -24,19 +26,10 @@ $effective->add(
     walK     => \@walk,
 );
 
-is(scalar($effective->hostlist), scalar(@host), 'Added two hosts');
+is(scalar($effective->hosts), scalar(@host), 'add two hosts');
 
-my $host = shift @{ $effective->hostlist };
-my $req  = shift @$host;
-
-### create session
-$$host = $effective->_create_session($host);
-
-is(ref $$host, "SNMP::Session", "SNMP session created");
+ok($host = $effective->shift_host, "host fetched");
+ok($req = shift @$host, "request defined");
 is($req->[0], "walk", "method is ok");
-is(ref $req->[1], "SNMP::VarList", "VarList defined");
-
-is(SNMP::Effective::match_oid("1.3.6.10", "1.3.6"), 10, "oid match");
-is(SNMP::Effective::make_name_oid("1.3.6.1.2.1.1.1"), "sysDescr", "name match numeric");
-is(SNMP::Effective::make_numeric_oid("sysDescr"), ".1.3.6.1.2.1.1.1", "numeric match numeric");
+isa_ok($req->[1], "SNMP::VarList", "VarList");
 
