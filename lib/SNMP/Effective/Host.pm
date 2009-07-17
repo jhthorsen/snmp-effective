@@ -16,9 +16,9 @@ use SNMP;
 use POSIX qw/:errno_h/;
 use overload (
     q("")  => sub { shift->address },
-    q(${}) => sub { shift->session },
     q(&{}) => sub { shift->callback },
     q(@{}) => sub { shift->_varlist },
+    q(${}) => sub { \shift->session },
     fallback => 1,
 );
 
@@ -62,7 +62,7 @@ sub _build_session {
     my $self = shift;
     local $! = 0;
 
-    if(my $session = SNMP::Session->new($self->arg)) {
+    if(my $session = SNMP::Session->new(%{ $self->arg })) {
         $self->fatal("");
         return $session;
     }
