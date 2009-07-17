@@ -31,7 +31,7 @@ sub set {
 
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+        $host->set_data($r, $cur_oid);
     }
 
     return $self->_end($host);
@@ -56,7 +56,7 @@ sub get {
 
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+        $host->set_data($r, $cur_oid);
     }
 
     return $self->_end($host);
@@ -81,7 +81,7 @@ sub getnext {
 
     for my $r (grep { ref $_ } @$response) {
         my $cur_oid = SNMP::Effective::make_numeric_oid($r->name);
-        $host->data($r, $cur_oid);
+        $host->set_data($r, $cur_oid);
     }
 
     return $self->_end($host);
@@ -117,7 +117,7 @@ sub walk {
             $splice--;
 
             if(defined SNMP::Effective::match_oid($cur_oid, $ref_oid)) {
-                $host->data($r, $ref_oid);
+                $host->set_data($r, $ref_oid);
                 $splice--;
                 $i++;
             }
