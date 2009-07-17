@@ -1,4 +1,4 @@
-#!perl -T
+#!perl
 
 use strict;
 use warnings;
@@ -6,7 +6,7 @@ use lib qw(./lib);
 use Test::More tests => 9;
 
 BEGIN {
-	use_ok( 'SNMP::Effective' );
+    use_ok( 'SNMP::Effective' );
 }
 
 my $effective = SNMP::Effective->new;
