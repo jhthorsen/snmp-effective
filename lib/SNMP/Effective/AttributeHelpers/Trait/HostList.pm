@@ -12,6 +12,8 @@ This module adds a global Moose constraint: "SNMPEffectiveHost".
 
 use Moose::Role;
 use Moose::Util::TypeConstraints;
+use MooseX::AttributeHelpers;
+use SNMP::Effective::AttributeHelpers::MethodProvider::HostList;
 
 with 'MooseX::AttributeHelpers::Trait::Collection::Hash';
 
@@ -38,14 +40,6 @@ has method_provider => (
 
 =head1 METHODS
 
-=head2 helper_type
-
- "ArrayRef" = $self->helper_type;
-
-=cut
-
-sub helper_type { 'ArrayRef' }
-
 =head2 _process_options
 
 Set default options unless specified:
@@ -63,7 +57,7 @@ before _process_options => sub {
     my($class, $name, $options) = @_;
 
     $options->{'is'}      ||= 'ro';
-    $options->{'default'} ||= {};
+    $options->{'default'} ||= sub { {} };
     $options->{'isa'}     ||= 'HashRef[SNMPEffectiveHost]';
     $options->{'coerce'}    = 1;
 };
