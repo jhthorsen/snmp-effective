@@ -6,148 +6,196 @@ SNMP::Effective::Host - Helper module for SNMP::Effective
 
 =head1 DESCRIPTION
 
-This is a helper module for SNMP::Effective
+This is a helper module for SNMP::Effective. It does the role
+L<SNMP::Effective::Role>.
 
 =cut
 
-use warnings;
-use strict;
-use overload '""'  => sub { shift()->{'_address'} };
-use overload '${}' => sub { shift()->{'_session'} };
-use overload '@{}' => sub { shift()->{'_varlist'} };
+use Moose;
+use SNMP;
+use POSIX qw/:errno_h/;
+use overload (
+    q("")  => sub { shift->address },
+    q(${}) => sub { shift->session },
+    q(&{}) => sub { shift->callback },
+    q(@{}) => sub { shift->_varlist },
+    fallback => 1,
+);
+
+with 'SNMP::Effective::Role';
 
 =head1 OBJECT ATTRIBUTES
 
-=head2 C<address>
+=head2 address
 
-Get host address, also overloaded by "$self"
+ $address = $self->address;
+ $address = "$self";
 
-=head2 C<sesssion>
-
-Get SNMP::Session, also overloaded by $$self
-
-=head2 C<varlist>
-
-The remaining OIDs to get/set, also overloaded by @$self
-
-=head2 C<callback>
-
-Get a ref to the callback method
-
-=head2 C<heap>
-
-Get / set any data you like. By default, it returns a hash-ref, so you can do:
-
- $host->heap->{'mykey'} = "remember this";
-           
-=head2 C<log>
-
-Get the same logger as SNMP::Effective use. Ment to be used, if you want to
-log through the same interface as SNMP::Effective.
+Returns host address.
 
 =cut
 
-BEGIN { ## no critic # for strict
-    no strict 'refs';
-    my %sub2key = qw/
-                      address   _address
-                      sesssion  _session
-                      varlist   _varlist
-                      callback  _callback
-                      heap      _heap
-                      log       _log
-                  /;
-    for my $subname (keys %sub2key) {
-        *$subname = sub {
-            my($self, $set)               = @_;
-            $self->{ $sub2key{$subname} } = $set if(defined $set);
-            $self->{ $sub2key{$subname} };
-        }
-    }
-}
+has address => (
+    is => 'ro',
+    isa => 'Str',
+    required => 1,
+);
 
-=head2 C<data>
+=head2 sesssion
 
-Get the retrieved data 
+ $snmp_session = $self->session;
+ $snmp_session = $$self;
+ $bool => $self->has_session;
+ $self->clear_session;
+
+Returns a L<SNMP::Session> or undef on failure.
 
 =cut
 
-sub data {
+has session => (
+    is => 'ro',
+    isa => 'Maybe[SNMP::Session]',
+    lazy_build => 1,
+);
+
+sub _build_session {
     my $self = shift;
+    local $! = 0;
 
-    if(@_) {
-        my $r       = shift;
-        my $ref_oid = shift || '';
-        my $iid     = $r->[1]
-                   || SNMP::Effective::match_oid($r->[0], $ref_oid)
-                   || 1;
-
-        $ref_oid    =~ s/^\.//mx;
-
-        $self->{'_data'}{$ref_oid}{$iid} = $r->[2];
-        $self->{'_type'}{$ref_oid}{$iid} = $r->[3];
+    if(my $session = SNMP::Session->new($self->arg)) {
+        $self->fatal("");
+        return $session;
     }
-
-    return $self->{'_data'};
+    else {
+        my($retry, $msg) = _check_errno();
+        $self->fatal($msg);
+        return;
+    }
 }
 
-=head2 C<clear_data>
+=head2 data
+
+ $hash_ref = $self->data;
+
+Get the retrieved data:
+
+ {
+   $oid => {
+     $iid => $value,
+     ...,
+   },
+   ...,
+ }
+
+=cut
+
+has data => (
+    is => 'ro',
+    isa => 'HashRef',
+    default => sub { {} },
+    clearer => '_clear_data',
+);
+
+=head2 type
+
+ $hash_ref = $self->type;
+
+Get SNMP type.
+
+ {
+   $oid => {
+     $iid => $type,
+     ...,
+   },
+   ...,
+ }
+
+=cut
+
+has type => (
+    is => 'ro',
+    isa => 'HashRef',
+    default => sub { {} },
+    clearer => '_clear_type',
+);
+
+=head2 fatal
+
+ $str = $self->fatal;
+
+Returns a string if the host should stop retrying an action. Example:
+
+ until($session = $self->session) {
+    die $self->fatal if($self->fatal);
+ }
+
+=cut
+
+has fatal => (
+    is => 'rw',
+    isa => 'Str',
+    default => "",
+);
+
+=head1 METHODS
+
+=head2 add_data
+
+ $bool = $self->add_data([$oid, $iid, $value, $type], $ref_oid);
+
+C<$iid> and C<$ref_oid> can be undef.
+
+=cut
+
+sub add_data {
+    my $self = shift;
+    my $r    = shift or return;
+    my $ref  = shift || q(.);
+    my $iid  = $r->[1] || SNMP::Effective::match_oid($r->[0], $ref) || 1;
+
+    $self->data->{$ref}{$iid} = $r->[2];
+    $self->type->{$ref}{$iid} = $r->[3];
+
+    return 1;
+}
+
+=head2 clear_data
+
+ $self->clear_data;
 
 Remove data from the host cache
 
 =cut
 
 sub clear_data {
-    my $self = shift;
-
-    $self->{'_data'} = {};
-    $self->{'_type'} = {};
-
+    $_[0]->_clear_data;
+    $_[0]->_clear_type;
     return;
 }
 
-=head2 C<arg>
+# ($retry, $reason) = _check_errno;
+sub _check_errno {
+    my $err    = $!;
+    my $string = "$!";
+    my $retry  = 0;
 
-Get SNMP::Session args
-
-=cut
-
-sub arg {
-    my $self = shift;
-    my $arg  = shift;
-
-    if(ref $arg eq 'HASH') {
-        $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
+    if($err) {
+        if(
+            $err == EINTR  ||  # Interrupted system call
+            $err == EAGAIN ||  # Resource temp. unavailable
+            $err == ENOMEM ||  # No memory (temporary)
+            $err == ENFILE ||  # Out of file descriptors
+            $err == EMFILE     # Too many open fd's
+        ) {
+            $string .= ' (will retry)';
+            $retry   = 1;
+        }
+    }
+    else {
+        $string  = "Couldn't resolve hostname";  # guesswork
     }
 
-    return %{$self->{'_arg'}}, DestHost => "$self" if(wantarray);
-    return   $self->{'_arg'};
-}
-
-=head1 METHODS
-
-=head2 new
-
-=cut
-
-sub new {
-    my $class = shift;
-    my $host  = shift or return;
-    my $log   = shift;
-    my($session, @varlist);
-
-    tie @varlist, "SNMP::Effective::VarList";
-
-    return bless {
-        _address  => $host,
-        _log      => $log,
-        _session  => \$session,
-        _varlist  => \@varlist,
-        _callback => sub {},
-        _arg      => {},
-        _data     => {},
-        _heap     => {},
-    }, $class;
+    return $retry, $string;
 }
 
 =head1 ACKNOWLEDGEMENTS
