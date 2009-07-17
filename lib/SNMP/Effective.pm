@@ -6,7 +6,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 1.06 of SNMP::Effective.
+This document refers to version 1.99_001 of SNMP::Effective.
 
 =head1 SYNOPSIS
 
@@ -181,6 +181,13 @@ has _hostlist => (
 );
 
 =head1 METHODS
+
+=head2 BUILDARGS
+
+ $hash_ref = $self->BUILDARGS(%args);
+ $hash_ref = $self->BUILDARGS({ foo => bar });
+
+See L<METHODS ARGUMENTS>.
 
 =cut
 
