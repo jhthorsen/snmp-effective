@@ -139,15 +139,15 @@ has fatal => (
 
 =head1 METHODS
 
-=head2 add_data
+=head2 set_data
 
- $bool = $self->add_data([$oid, $iid, $value, $type], $ref_oid);
+ $bool = $self->set_data([$oid, $iid, $value, $type], $ref_oid);
 
 C<$iid> and C<$ref_oid> can be undef.
 
 =cut
 
-sub add_data {
+sub set_data {
     my $self = shift;
     my $r    = shift or return;
     my $ref  = shift || q(.);
