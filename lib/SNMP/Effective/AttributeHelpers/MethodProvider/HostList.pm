@@ -9,10 +9,6 @@ SNMP::Effective::AttributeHelpers::MethodProvider::HostList
 This module does the role
 L<SNMP::Effective::AttributeHelpers::MethodProvider::Hash>.
 
-=head1 NOTES
-
-This module adds a global Moose constraint: "SNMPEffectiveHost".
-
 =cut
 
 use Moose::Role;

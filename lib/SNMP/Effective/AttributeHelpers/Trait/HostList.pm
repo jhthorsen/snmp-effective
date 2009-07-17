@@ -4,6 +4,10 @@ package SNMP::Effective::AttributeHelpers::Trait::HostList;
 
 SNMP::Effective::AttributeHelpers::Trait::HostList
 
+=head1 NOTES
+
+This module adds a global Moose constraint: "SNMPEffectiveHost".
+
 =cut
 
 use Moose::Role;
@@ -14,7 +18,7 @@ with 'MooseX::AttributeHelpers::Trait::Collection::Hash';
 subtype 'SNMPEffectiveHost' => as 'SNMP::Effective::Host';
 coerce 'SNMPEffectiveHost' => (
     from 'HashRef' => via { SNMP::Effective::Host->new($_) },
-    from 'ArrayRef' => via { SNMP::Effective::Host->new(name => @$_) },
+    from 'ArrayRef' => via { SNMP::Effective::Host->new(address => @$_) },
 );
 
 =head1 ATTRIBUTES
