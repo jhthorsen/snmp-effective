@@ -35,8 +35,8 @@ Set default options unless specified.
 
  {
    is => 'ro',
-   default => [],
    isa => 'ArrayRef',
+   default => [],
  }
 
 =cut
@@ -45,8 +45,8 @@ before _process_options => sub {
     my($class, $name, $options) = @_;
 
     $options->{'is'}      ||= 'ro';
-    $options->{'default'} ||= sub { [] };
     $options->{'isa'}     ||= 'ArrayRef';
+    $options->{'default'} ||= sub { [] };
 };
 
 =head1 SEE ALSO

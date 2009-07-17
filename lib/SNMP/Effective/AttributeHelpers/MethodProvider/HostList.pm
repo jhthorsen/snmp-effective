@@ -28,6 +28,30 @@ Add a new L<SNMP::Effective::Host> object to list.
 
 =cut
 
+sub set : method {
+    my($attr, $reader, $writer) = @_;
+    my $super = MooseX::AttributeHelpers::MethodProvider::Hash::set(@_);
+
+    return sub {
+        my $self = shift;
+
+        if(@_ == 2) {
+            return $super->(@_);
+        }
+        elsif(ref $_[0] eq 'HASH') {
+            return $super->($self,
+                $_[0]->{'address'} => SNMP::Effective::Host->new($_[0])
+            );
+        }
+        elsif(blessed $_[0])  {
+            return $super->($self, $_[0]->address => $_[0]);
+        }
+        else {
+            confess "Unknown input: @_";
+        }
+    };
+}
+
 =head2 shift
 
  $code = $attribute->shift($reader, $writer);
@@ -41,7 +65,7 @@ sub shift : method {
     my($attr, $reader, $writer) = @_;
 
     return sub {
-        my $hosts = $writer->($_[0]);
+        my $hosts = $reader->($_[0]);
         my($key)  = keys %$hosts or return;
         return delete $hosts->{$key};
     }
@@ -60,7 +84,7 @@ sub is_empty : method {
     my($attr, $reader, $writer) = @_;
 
     return sub {
-        return keys %{ $writer->($_[0]) } ? 0 : 1;
+        return keys %{ $reader->($_[0]) } ? 0 : 1;
     };
 }
 

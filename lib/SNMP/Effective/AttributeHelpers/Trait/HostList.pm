@@ -4,24 +4,15 @@ package SNMP::Effective::AttributeHelpers::Trait::HostList;
 
 SNMP::Effective::AttributeHelpers::Trait::HostList
 
-=head1 NOTES
-
-This module adds a global Moose constraint: "SNMPEffectiveHost".
-
 =cut
 
 use Moose::Role;
+use SNMP::Effective::Host;
 use Moose::Util::TypeConstraints;
 use MooseX::AttributeHelpers;
 use SNMP::Effective::AttributeHelpers::MethodProvider::HostList;
 
 with 'MooseX::AttributeHelpers::Trait::Collection::Hash';
-
-subtype 'SNMPEffectiveHost' => as 'SNMP::Effective::Host';
-coerce 'SNMPEffectiveHost' => (
-    from 'HashRef' => via { SNMP::Effective::Host->new($_) },
-    from 'ArrayRef' => via { SNMP::Effective::Host->new(address => @$_) },
-);
 
 =head1 ATTRIBUTES
 
@@ -46,9 +37,8 @@ Set default options unless specified:
 
  {
    is => 'ro',
+   isa => 'HashRef[SNMP::Effective::Host]',
    default => sub { [] },
-   isa => 'HashRef[SNMPEffectiveHost]',
-   coerce => 1,
  }
 
 =cut
@@ -57,9 +47,8 @@ before _process_options => sub {
     my($class, $name, $options) = @_;
 
     $options->{'is'}      ||= 'ro';
+    $options->{'isa'}     ||= 'HashRef[SNMP::Effective::Host]';
     $options->{'default'} ||= sub { {} };
-    $options->{'isa'}     ||= 'HashRef[SNMPEffectiveHost]';
-    $options->{'coerce'}    = 1;
 };
 
 =head1 SEE ALSO
