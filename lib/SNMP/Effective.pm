@@ -275,7 +275,7 @@ sub add {
     for my $k (keys %{ $self->_method_map }) {
         if($in->{$k}) {
             push @{ $in->{'varlist'} }, [
-                $k => ref $in->{$key} eq 'ARRAY' ? @{$in->{$k}} : $in->{$k}
+                $k => ref $in->{$k} eq 'ARRAY' ? @{$in->{$k}} : $in->{$k}
             ];
         }
     }
@@ -308,7 +308,7 @@ sub add {
                     arg      => $in->{'arg'}      || $self->arg,
                     heap     => $in->{'heap'}     || $self->heap,
                     callback => $in->{'callback'} || $self->callback,
-                    varlist  => $in->{'varlist'}  || $self->_varlist;
+                    varlist  => $in->{'varlist'}  || $self->_varlist,
                 });
             }
         }
