@@ -77,11 +77,13 @@ The method arguments are very flexible. Any of the below acts as the same:
 =cut
 
 use Moose;
-use MooseX::AttributeHelpers;
 use SNMP;
-use SNMP::Effective::AttributeHelpers::Trait::HostList;
 
-with qw/SNMP::Effective::Role SNMP::Effective::Lock/;
+with qw/
+    SNMP::Effective::Role
+    SNMP::Effective::Lock
+    SNMP::Effective::Callbacks
+/;
 
 our $VERSION = '1.99_001';
 

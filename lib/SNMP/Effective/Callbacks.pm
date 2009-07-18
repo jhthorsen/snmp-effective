@@ -2,15 +2,17 @@ package SNMP::Effective::Callbacks;
 
 =head1 NAME
 
-SNMP::Effective::Callbacks - Callback class for SNMP::Effective
+SNMP::Effective::Callbacks - SNMP callbacks
 
 =head1 DESCRIPTION
 
-This is a helper module for L<SNMP::Effective>
+This role contains callback methods for L<SNMP::Effective>. These methods
+are called from within an L<SNMP> get/getnext/set/... method and
+should handle the response from a SNMP client.
 
 =cut
 
-use Moose;
+use Moose::Role;
 
 =head2 set
 

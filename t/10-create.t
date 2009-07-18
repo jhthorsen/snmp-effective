@@ -7,6 +7,14 @@ use SNMP::Effective;
 use Log::Log4perl qw(:easy);
 use Test::More tests => 14;
 
+BEGIN {
+    no warnings 'redefine';
+    *SNMP::Session::get = sub {
+        my($method, $obj, $host) = @{ $_[2] };
+        ok($obj->can($method), "$host / SNMP::Effective can $method()");
+    };
+}
+
 my $max_sessions = 2;
 my @host = qw/10.1.1.2/;
 my @walk = qw/sysDescr/;
@@ -50,5 +58,6 @@ is_deeply($host->heap, { foo => 42 }, "default heap is set");
 # dispatcher
 push @host, '10.1.1.3';
 $effective->add(dest_host => \@host);
-is($effective->_dispatch, $max_sessions, "dispatcher set up hosts");
+ok($effective->_dispatch, "dispatcher set up hosts");
+is($effective->sessions, $max_sessions, "correct number of sessions");
 
