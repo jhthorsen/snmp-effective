@@ -3,18 +3,19 @@
 use strict;
 use warnings;
 use lib qw(./lib);
-use Test::More tests => 15;
-
-BEGIN {
-    use_ok('SNMP::Effective');
-}
+use SNMP::Effective;
+use Log::Log4perl qw(:easy);
+use Test::More tests => 14;
 
 my $max_sessions = 2;
-my $effective = SNMP::Effective->new(max_sessions => $max_sessions);
 my @host = qw/10.1.1.2/;
 my @walk = qw/sysDescr/;
 my $timeout = 3;
-my($host, $req);
+my($effective, $host, $req);
+
+Log::Log4perl->easy_init($ENV{'VERBOSE'} ? $TRACE : $FATAL);
+
+$effective = SNMP::Effective->new(max_sessions => $max_sessions);
 
 ok($effective, 'object constructed');
 ok(!$effective->execute, "cannot execute without hosts");
