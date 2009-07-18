@@ -2,7 +2,7 @@ NAME
     SNMP::Effective - An effective SNMP-information-gathering module
 
 VERSION
-    This document refers to version 1.06 of SNMP::Effective.
+    This document refers to version 1.99_001 of SNMP::Effective.
 
 SYNOPSIS
      use SNMP::Effective;
@@ -86,6 +86,12 @@ OBJECT ATTRIBUTES
     Returns a log object. Need to comply with the Log::Log4perl api.
 
 METHODS
+  BUILDARGS
+     $hash_ref = $self->BUILDARGS(%args);
+     $hash_ref = $self->BUILDARGS({ foo => bar });
+
+    See "METHODS ARGUMENTS".
+
   add
      $self->add(%arguments);
 
