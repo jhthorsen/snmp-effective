@@ -139,6 +139,23 @@ has fatal => (
 
 =head1 METHODS
 
+ $self->BUILD({ varlist => [...], ... });
+
+Called after C<new()>. See L<Moose::Object>.
+
+Sets up varlist.
+
+=cut
+
+sub BUILD {
+    my $self = shift;
+    my $args = shift;
+
+    if(my $varlist = $args->{'varlist'}) {
+        $self->add_varlist(@$varlist);
+    }
+}
+
 =head2 set_data
 
  $bool = $self->set_data([$oid, $iid, $value, $type], $ref_oid);
