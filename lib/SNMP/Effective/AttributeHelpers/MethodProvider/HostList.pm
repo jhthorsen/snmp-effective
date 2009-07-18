@@ -71,23 +71,6 @@ sub shift : method {
     }
 }
 
-=head2 is_empty
-
- $code = $attribute->is_empty($reader, $writer);
- $bool = $self->$code;
-
-Returns true if the hostlist is empty.
-
-=cut
-
-sub is_empty : method {
-    my($attr, $reader, $writer) = @_;
-
-    return sub {
-        return keys %{ $reader->($_[0]) } ? 0 : 1;
-    };
-}
-
 =head1 SEE ALSO
 
 L<SNMP::Effective::AttributeHelpers::Trait::VarList>
