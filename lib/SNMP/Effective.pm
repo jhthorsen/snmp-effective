@@ -80,11 +80,18 @@ use Moose;
 use MooseX::AttributeHelpers;
 use SNMP;
 use SNMP::Effective::AttributeHelpers::Trait::HostList;
-use Log::Log4perl;
 
 with qw/SNMP::Effective::Role SNMP::Effective::Lock/;
 
 our $VERSION = '1.99_001';
+
+# this package does not exist, but variable exists for backward compat
+%SNMP::Effective::Dispatch::METHOD = (
+    get     => 'get',
+    getnext => 'getnext',
+    walk    => 'getnext',
+    set     => 'set',
+);
 
 =head1 OBJECT ATTRIBUTES
 
@@ -128,44 +135,23 @@ has sessions => (
     traits => [qw/MooseX::AttributeHelpers::Trait::Counter/],
     is => 'rw',
     isa => 'Int',
-    handles => {
+    default => 0,
+    provides => {
         inc => 'inc_sessions',
         dec => 'dec_sessions',
         reset => '_reset_session_counter',
     },
 );
 
-=head2 log
-
- $log = $self->log;
-
-Returns a log object. Need to comply with the L<Log::Log4perl> api.
-
-=cut
-
-has log => (
-    is => 'ro',
-    isa => 'Any',
-    default => sub {
-        Log::Log4perl->easy_init unless(Log::Log4perl->initialized);
-        Log::Log4perl->get_logger;
-    },
-);
-
 has _method_map => (
-    metaclass => 'Collection::Hash',
+    traits => [qw/MooseX::AttributeHelpers::Trait::Collection::Hash/],
     is => 'ro',
     isa => 'HashRef',
-    handles => {
-        get => 'get_method',
-        set => 'add_method',
+    default => sub { \%SNMP::Effective::Dispatch::METHOD },
+    provides => {
+        set => 'add_callback',
+        get => 'get_callback',
     },
-    default => sub { +{
-        get     => 'get',
-        getnext => 'getnext',
-        walk    => 'getnext',
-        set     => 'set',
-    } },
 );
 
 has _hostlist => (
@@ -176,7 +162,6 @@ has _hostlist => (
         delete => 'delete_host',
         shift => 'shift_host',
         keys => 'hosts',
-        is_empty => 'has_hosts',
     },
 );
 
@@ -274,63 +259,68 @@ This can be used to alter all hosts' SNMP arguments or callback method.
 =cut
 
 sub add {
-    my $self    = shift;
-    my $in      = $self->BUILDARGS(@_) or return;
-    my $varlist = [];
+    my $self = shift;
+    my $in   = $self->BUILDARGS(@_) or return;
+
+    local $in->{'varlist'}; # don't mangle input
 
     # setup host
     if($in->{'dest_host'}) {
         unless(ref $in->{'dest_host'} eq 'ARRAY') {
             $in->{'dest_host'} = [$in->{'dest_host'}];
         }
-        $self->log->info("Add host(@{ $in->{'dest_host'} })");
     }
 
     # setup varlist
-    for my $key (keys %{ $self->_method_map }) {
-        next                        unless($in->{$key});
-        $in->{$key} = [$in->{$key}] unless(ref $in->{$key} eq 'ARRAY');
-
-        # add to queue
-        if(@{$in->{$key}}) {
-            $self->log->info("Add $key(@{ $in->{$key} })");
-            unshift @{$in->{$key}}, $key;
-            push @$varlist, $in->{$key};
+    for my $k (keys %{ $self->_method_map }) {
+        if($in->{$k}) {
+            push @{ $in->{'varlist'} }, [
+                $k => ref $in->{$key} eq 'ARRAY' ? @{$in->{$k}} : $in->{$k}
+            ];
         }
     }
 
-    unless(@$varlist) {
-        $varlist = $self->_varlist;
-    }
+    # add
+    if(ref $in->{'dest_host'} eq 'ARRAY') {
+        $in->{'varlist'} ||= $self->_varlist;
 
-    if(ref $in->{'dest_host'} eq 'ARRAY') { # add
         for my $addr (@{$in->{'dest_host'}}) {
+
+            # remove from debug output
+            local $in->{'dest_host'};
+            delete $in->{'dest_host'};
+
             if(my $host = $self->get_host($addr)) {
-                $host->add_varlist(@$varlist);
+                $self->log(debug => 'Update %s: %s', $addr, $in);
+                $host->add_varlist(@{ $in->{'varlist'} });
                 $self->add_host({ # replace existing host
                     address  => $addr,
                     arg      => $in->{'arg'}      || $host->arg,
                     heap     => $in->{'heap'}     || $host->heap,
                     callback => $in->{'callback'} || $host->callback,
-                    _varlist => $host->_varlist,
+                    varlist  => $host->_varlist,
                 });
             }
             else {
+                $self->log(debug => 'New %s: %s', $addr, $in);
                 $self->add_host({
                     address  => $addr,
                     arg      => $in->{'arg'}      || $self->arg,
                     heap     => $in->{'heap'}     || $self->heap,
                     callback => $in->{'callback'} || $self->callback,
+                    varlist  => $in->{'varlist'}  || $self->_varlist;
                 });
-                $self->get_host($addr)->add_varlist(@$varlist);
             }
         }
     }
-    else { # update
-        $self->add_varlist($varlist);
-        $self->arg($in->{'arg'})           if($in->{'arg'});
-        $self->callback($in->{'callback'}) if($in->{'callback'});
-        $self->heap($in->{'heap'})         if(defined $in->{'heap'});
+
+    # update
+    else {
+        $self->log(debug => 'Update main object: %s', $in);
+        $self->add_varlist(@{$in->{'varlist'}}) if($in->{'varlist'});
+        $self->arg($in->{'arg'})                if($in->{'arg'});
+        $self->callback($in->{'callback'})      if($in->{'callback'});
+        $self->heap($in->{'heap'})              if(defined $in->{'heap'});
     }
 
     return 1;
@@ -341,25 +331,40 @@ sub add {
  $bool = $self->execute;
 
 This method starts setting and/or getting data. It will run as long as
-necessary, or until C<master_timeout> seconds has passed. Every time some
+necessary, or until L<master_timeout> seconds has passed. Every time some
 data is set and/or retrieved, it will call the callback-method, as defined
 globally or per host.
+
+Return true on success, false if no hosts are set up and C<undef> if 
+C<SNMP::MainLoop()> exit after L<master_timeout> seconds.
 
 =cut
 
 sub execute {
     my $self    = shift;
-    my $timeout = $self->timeout || -1;
+    my $timeout = $self->master_timeout;
 
     # no hosts to get data from
-    unless($self->has_hosts) {
-        $self->log->warn("Cannot execute: No hosts defined");
+    unless($self->hosts) {
+        $self->log(warn => 'Cannot execute: No hosts defined');
         return 0;
     }
 
-    $self->log->warn("Execute dispatcher with timeout=$timeout");
-    $self->_dispatch and SNMP::MainLoop();
-    $self->log->warn("Done running the dispatcher");
+    $self->log(warn => 'Execute dispatcher with timeout=%s', $timeout);
+
+    if($self->_dispatch) {
+        if($timeout) {
+            eval {
+                SNMP::MainLoop($timeout, sub { die "TIMEOUT\n" });
+                1;
+            } or return;
+        }
+        else {
+            SNMP::MainLoop();
+        }
+    }
+
+    $self->log(warn => 'Done running the dispatcher');
 
     return 1;
 }
@@ -368,22 +373,27 @@ sub execute {
 sub _dispatch {
     my $self = shift;
     my $host = shift;
-    my $log  = $self->log;
     my($request, $req_id, $snmp_method);
 
     $self->wait_for_lock;
 
+    if($host and @$host == 0) {
+        $self->log(info => '%s complete', "$host");
+        $self->dec_sessions;
+    }
+
     HOST:
     while($self->sessions < $self->max_sessions or $host) {
-        $host      ||= $self->shift_host or last HOST;
-        $request     = shift @$host      or next HOST;
-        $snmp_method = $self->get_method($request->[0]);
+        $host      ||= $self->shift_host    or last HOST;
+        $request     = $host->shift_varbind or next HOST;
+        $snmp_method = $self->get_callback($request->[0]);
         $req_id      = undef;
 
         unless($host->has_session) {
             $self->inc_sessions;
         }
         unless($host->session) {
+            # $host->fatal is set
             next HOST;
         }
 
@@ -393,33 +403,36 @@ sub _dispatch {
                           $request->[1],
                           [ $request->[0], $self, $host, $request->[1] ]
                       );
-            $log->debug(
-                "\$self->_$request->[0]( ${host}->$snmp_method(...) )"
+            $self->log(trace => '$self->_%s( %s->%s(...) )',
+                $request->[0], $host, $snmp_method
             );
         }
 
         # something went wrong
-        unless($req_id) {
-            $log->info("Method $request->[0] failed \@ $host");
+        if($req_id) {
+            $self->log(trace => "%s request %s", "$host", $request->[0]);
+        }
+        else {
+            $host->fatal("Could not create request: " .$request->[0]);
             next HOST;
         }
     }
     continue {
-        if($host->has_session and !ref $request) {
-            $self->dec_sessions;
-            $log->info("Completed $host");
+        if($req_id or !@$host) {
+            $host = undef;
         }
-        if($req_id or @$host) {
+        elsif($host->fatal) {
+            $self->log(error => '%s failed: %s', "$host", $host->fatal);
             $host = undef;
         }
     }
 
-    $log->debug(sprintf "Sessions/max-sessions: %i<%i",
+    $self->log(debug => 'Sessions/max-sessions: %i<%i',
         $self->sessions, $self->max_sessions
     );
 
     unless($self->hosts or $self->sessions) {
-        $log->info("SNMP::finish() is next up");
+        $self->log(info => 'SNMP::finish() is next up');
         SNMP::finish();
     }
 
@@ -434,7 +447,7 @@ sub _end {
     my $host  = shift;
     my $error = shift;
 
-    $self->log->debug("Callback for $host...");
+    $self->log(debug => 'Callback for %s...', $host);
     $host->($host, $error);
     $host->clear_data;
 
@@ -459,13 +472,13 @@ sub _end {
 
  @hostnames = $self->hosts;
 
-=head2 add_method
+=head2 add_callback
 
  $self->add_method($dispatch_method => $snmp_method);
 
-=head2 get_method
+=head2 get_callback
 
- $snmp_method = $self->get_method($dispatch_method);
+ $snmp_method = $self->get_callback($dispatch_method);
 
 =cut
 
@@ -524,7 +537,7 @@ This means that you can actually add your custom method if you like.
 The L<walk()> method, is a working example on this, since it's actually
 a series of getnext, seen from L<SNMP>.pm's perspective.
 
-Use L<add_method()> and L<get_method()> to manipulate this behaviour.
+Use L<add_callback()> and L<get_callback()> to manipulate this behaviour.
 
 =head1 BUGS
 
