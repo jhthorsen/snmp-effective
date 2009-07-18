@@ -3,22 +3,23 @@
 use strict;
 use warnings;
 use lib qw(./lib);
-use Test::More tests => 7;
+use Test::More tests => 15;
 
 BEGIN {
-    use_ok( 'SNMP::Effective' );
-    no warnings 'redefine';
-    *SNMP::_new_session = sub { 42 };
+    use_ok('SNMP::Effective');
 }
 
-my $effective = SNMP::Effective->new;
-my @host      = qw/10.1.1.2 10.1.1.3/;
-my @walk      = qw/sysDescr/;
-my $timeout   = 3;
+my $max_sessions = 2;
+my $effective = SNMP::Effective->new(max_sessions => $max_sessions);
+my @host = qw/10.1.1.2/;
+my @walk = qw/sysDescr/;
+my $timeout = 3;
 my($host, $req);
 
 ok($effective, 'object constructed');
+ok(!$effective->execute, "cannot execute without hosts");
 
+# add
 $effective->add(
     Dest_Host => \@host,
     Arg      => { Timeout => $timeout },
@@ -32,4 +33,21 @@ ok($host = $effective->shift_host, "host fetched");
 ok($req = shift @$host, "request defined");
 is($req->[0], "walk", "method is ok");
 isa_ok($req->[1], "SNMP::VarList", "VarList");
+
+# add with defaults
+$effective->add(get => 'sysName', heap => { foo => 42 });
+$effective->add(getnext => 'ifIndex');
+$effective->add(dest_host => '127.0.0.1');
+
+ok($host = $effective->shift_host, "host with defauls fetched");
+ok($req = shift @$host, "first default request defined");
+is($req->[0], "get", "first default method is ok");
+ok($req = shift @$host, "second default request defined");
+is($req->[0], "getnext", "second default method is ok");
+is_deeply($host->heap, { foo => 42 }, "default heap is set");
+
+# dispatcher
+push @host, '10.1.1.3';
+$effective->add(dest_host => \@host);
+is($effective->_dispatch, $max_sessions, "dispatcher set up hosts");
 

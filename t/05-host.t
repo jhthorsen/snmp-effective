@@ -7,8 +7,6 @@ use Test::More tests => 7;
 
 BEGIN {
     use_ok('SNMP::Effective::Host');
-    no warnings 'redefine';
-    *SNMP::_new_session = sub { 42 };
 }
 
 my $addr = "127.0.0.1";
@@ -23,6 +21,7 @@ is_deeply($host->arg, {
     Timeout   => 1e6,
     Retries   => 2
 }, "args ok");
+
 is($host->address, $addr, "object is constructed");
 is("$host", $addr, "address overload");
 is(int(@$host), 0, "varbind overloaded");
