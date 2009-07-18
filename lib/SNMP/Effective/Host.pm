@@ -139,6 +139,8 @@ has fatal => (
 
 =head1 METHODS
 
+=head2 BUILD
+
  $self->BUILD({ varlist => [...], ... });
 
 Called after C<new()>. See L<Moose::Object>.
