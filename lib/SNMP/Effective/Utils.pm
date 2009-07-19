@@ -4,15 +4,29 @@ package SNMP::Effective::Utils;
 
 SNMP::Effective::Utils - Utils for SNMP::Effective
 
+=head1 DESCRIPTION
+
+This modul can export functions to other modules.
+
 =head1 SYNOPSIS
 
- use SNMP::Effective::Utils;
- #...
+ use SNMP::Effective::Utils ':all';
+ use SNMP::Effective::Utils qw/function_name/;
 
 =cut 
 
-use Moose;
+use strict;
+use warnings;
 use SNMP;
+
+BEGIN {
+    use Sub::Exporter;
+    my @exports = qw/ match_oid make_numeric_oid make_name_oid /;
+    Sub::Exporter::setup_exporter({
+        exports => \@exports,
+        groups => { all => \@exports },
+    });
+}
 
 =head1 FUNCTIONS
 
