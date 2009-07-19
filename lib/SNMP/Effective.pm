@@ -11,20 +11,21 @@ This document refers to version 1.99_001 of SNMP::Effective.
 =head1 SYNOPSIS
 
  use SNMP::Effective;
- 
+
  my $snmp = SNMP::Effective->new(
      max_sessions   => $NUM_POLLERS,
      master_timeout => $TIMEOUT_SECONDS,
  );
- 
+
  $snmp->add(
      dest_host => $ip,
      callback  => sub { store_data() },
      get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
  );
+
  # lather, rinse, repeat
- 
  # retrieve data from all hosts
+
  $snmp->execute;
 
 =head1 DESCRIPTION
@@ -92,14 +93,13 @@ our $VERSION = '1.99_001';
 
  $seconds = $self->master_timeout;
 
-Maximum seconds for L<execute()> to run. Default is -1, which means forever.
+Maximum seconds for L<execute()> to run. Default is undef, which means forever.
 
 =cut
 
 has master_timeout => (
     is => 'ro',
-    isa => 'Int',
-    default => -1,
+    isa => 'Maybe[Int]',
 );
 
 =head2 max_sessions
@@ -484,23 +484,22 @@ method, provided by the C<< Callback => sub{} >> argument. Here is an
 example of a callback method:
 
  sub my_callback {
-     my($host, $error) = @_
+   my($host, $error) = @_
 
-     if($error) {
-         warn "$host failed with this error: $error"
-         return;
-     }
- 
-     my $data = $host->data;
- 
-     for my $oid (keys %$data) {
-         print "$host returned oid $oid with this data:\n";
- 
-         print join "\n\t",
-               map { "$_ => $data->{$oid}{$_}" }
-                   keys %{ $data->{$oid}{$_} };
-         print "\n";
-     }
+   if($error) {
+      warn "$host failed with this error: $error"
+      return;
+   }
+
+   my $data = $host->data;
+
+   for my $oid (keys %$data) {
+     print "$host returned oid $oid with this data:\n";
+     print join "\n\t",
+           map { "$_ => $data->{$oid}{$_}" }
+           keys %{ $data->{$oid}{$_} };
+     print "\n";
+   }
  }
 
 =head1 DEBUGGING

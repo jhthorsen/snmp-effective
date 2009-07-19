@@ -6,20 +6,21 @@ VERSION
 
 SYNOPSIS
      use SNMP::Effective;
-     
- my $snmp = SNMP::Effective->new(
+
+     my $snmp = SNMP::Effective->new(
          max_sessions   => $NUM_POLLERS,
          master_timeout => $TIMEOUT_SECONDS,
      );
-     
- $snmp->add(
+
+     $snmp->add(
          dest_host => $ip,
          callback  => sub { store_data() },
          get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
      );
+
      # lather, rinse, repeat
-     
- # retrieve data from all hosts
+     # retrieve data from all hosts
+
      $snmp->execute;
 
 DESCRIPTION
@@ -67,7 +68,7 @@ OBJECT ATTRIBUTES
   master_timeout
      $seconds = $self->master_timeout;
 
-    Maximum seconds for execute() to run. Default is -1, which means
+    Maximum seconds for execute() to run. Default is undef, which means
     forever.
 
   max_sessions
@@ -170,23 +171,22 @@ The callback method
     of a callback method:
 
      sub my_callback {
-         my($host, $error) = @_
+       my($host, $error) = @_
 
-         if($error) {
-             warn "$host failed with this error: $error"
-             return;
-         }
-     
-     my $data = $host->data;
-     
-     for my $oid (keys %$data) {
-             print "$host returned oid $oid with this data:\n";
-     
+       if($error) {
+          warn "$host failed with this error: $error"
+          return;
+       }
+
+       my $data = $host->data;
+
+       for my $oid (keys %$data) {
+         print "$host returned oid $oid with this data:\n";
          print join "\n\t",
-                   map { "$_ => $data->{$oid}{$_}" }
-                       keys %{ $data->{$oid}{$_} };
-             print "\n";
-         }
+               map { "$_ => $data->{$oid}{$_}" }
+               keys %{ $data->{$oid}{$_} };
+         print "\n";
+       }
      }
 
 DEBUGGING
