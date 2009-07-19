@@ -80,11 +80,6 @@ OBJECT ATTRIBUTES
      $self->inc_sessions;
      $self->dec_sessions;
 
-  log
-     $log = $self->log;
-
-    Returns a log object. Need to comply with the Log::Log4perl api.
-
 METHODS
   BUILDARGS
      $hash_ref = $self->BUILDARGS(%args);
@@ -138,14 +133,32 @@ METHODS
      $bool = $self->execute;
 
     This method starts setting and/or getting data. It will run as long as
-    necessary, or until "master_timeout" seconds has passed. Every time some
+    necessary, or until master_timeout seconds has passed. Every time some
     data is set and/or retrieved, it will call the callback-method, as
     defined globally or per host.
 
+    Return true on success, false if no hosts are set up and "undef" if
+    "SNMP::MainLoop()" exit after master_timeout seconds.
+
+  add_snmp_callback
+     $class->add_snmp_callback($name, $snmp_method, sub {});
+     $self->add_snmp_callback($name, $snmp_method, sub {});
+
+    Will add a callback for SNMP::Effective.
+
+    $name is what you refere to in SNMP::Effective::add():
+
+     $self->add( $name => ['sysDescr'] );
+
+    $snmp_method is the method which should be called on the SNMP::Session
+    object.
+
+    See SNMP::Effective::Callbacks for default callbacks.
+
   add_host
      $self->add_host($host_obj);
-     $self->add_host([$hostname, %args]);
-     $self->add_host(\%args);
+     $self->add_host([$hostname, %constructor_args]);
+     $self->add_host(\%constructur_args);
 
   get_host
      $host_obj = $self->get_host($hostname);
@@ -156,12 +169,6 @@ METHODS
   hosts
      @hostnames = $self->hosts;
 
-  add_method
-     $self->add_method($dispatch_method => $snmp_method);
-
-  get_method
-     $snmp_method = $self->get_method($dispatch_method);
-
 The callback method
     When "SNMP" is done collecting data from a host, it calls a callback
     method, provided by the "Callback => sub{}" argument. Here is an example
@@ -169,8 +176,8 @@ The callback method
 
      sub my_callback {
          my($host, $error) = @_
-      
-     if($error) {
+
+         if($error) {
              warn "$host failed with this error: $error"
              return;
          }
@@ -192,27 +199,6 @@ DEBUGGING
     spesified, it will default to "error" level, and print to STDERR. The
     component-name you want to change is "SNMP::Effective", inless this
     module ins inherited.
-
-NOTES
-  "walk()"
-    SNMP::Effective doesn't really do a SNMP native "walk". It makes a
-    series of "getnext", which is almost the same as SNMP's walk.
-
-  "set()"
-    If you want to use SNMP SET, you have to build your own varbind:
-
-     $varbind = SNMP::VarBind($oid, $iid, $value, $type);
-     $effective->add( set => $varbind );
-
-  Method map
-    This hash contains a mapping between $effective->add($key => []),
-    "SNMP::Effective::Dispatch::$key()" and SNMP.pm's $value method. This
-    means that you can actually add your custom method if you like.
-
-    The walk() method, is a working example on this, since it's actually a
-    series of getnext, seen from SNMP.pm's perspective.
-
-    Use add_method() and get_method() to manipulate this behaviour.
 
 BUGS
     Please report any bugs or feature requests to "bug-snmp-effective at

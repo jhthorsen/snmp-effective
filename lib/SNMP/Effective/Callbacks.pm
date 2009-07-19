@@ -4,11 +4,20 @@ package SNMP::Effective::Callbacks;
 
 SNMP::Effective::Callbacks - SNMP callbacks
 
+=head1 SYNOPSIS
+
+ use SNMP::Effective;
+
+ my $effective = SNMP::Effective->new;
+
+ # $name is one of the callbacks in this package
+ $effective->add($name => $varlist);
+
 =head1 DESCRIPTION
 
-This package contains callback methods for L<SNMP::Effective>. These methods
-are called from within an L<SNMP> get/getnext/set/... method and
-should handle the response from a SNMP client.
+This package contains default callback methods for L<SNMP::Effective>.
+These methods are called from within an L<SNMP> get/getnext/set/...
+method and should handle the response from a SNMP client.
 
 =cut
 
@@ -21,10 +30,13 @@ use SNMP::Effective::Utils qw/:all/;
 
 =head2 set
 
- set($snmp_effective, $host, $request, $response);
-
 This method is called after L<SNMP>.pm has completed it's C<set> call
 on the C<$host>.
+
+If you want to use SNMP SET, you have to build your own varbind:
+
+ use SNMP::Effective::Utils qw/varbind/;
+ $effective->add( set => varbind($oid, $iid, $value, $type) );
 
 =cut
 
@@ -42,8 +54,6 @@ SNMP::Effective->add_snmp_callback(set => set => sub {
 });
 
 =head2 get
-
- get($snmp_effective, $host, $request, $response);
 
 This method is called after L<SNMP>.pm has completed it's C<get> call
 on the C<$host>.
@@ -65,8 +75,6 @@ SNMP::Effective->add_snmp_callback(get => get => sub {
 
 =head2 getnext
 
- getnext($snmp_effective, $host, $request, $response);
-
 This method is called after L<SNMP>.pm has completed it's C<getnext> call
 on the C<$host>.
 
@@ -86,8 +94,6 @@ SNMP::Effective->add_snmp_callback(getnext => getnext => sub {
 });
 
 =head2 walk
-
- walk($snmp_effective, $host, $request, $response);
 
 This method is called after L<SNMP>.pm has completed it's C<getnext> call
 on the C<$host>. It will continue sending C<getnext> requests, until an

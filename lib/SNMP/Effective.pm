@@ -450,7 +450,7 @@ C<$name> is what you refere to in L<SNMP::Effective::add()>:
 C<$snmp_method> is the method which should be called on the
 L<SNMP::Session> object.
 
-See L<SNMP::Effective::Callbacks> for examples.
+See L<SNMP::Effective::Callbacks> for default callbacks.
 
 =cut
 
@@ -468,8 +468,8 @@ sub add_snmp_callback {
 =head2 add_host
 
  $self->add_host($host_obj);
- $self->add_host([$hostname, %args]);
- $self->add_host(\%args);
+ $self->add_host([$hostname, %constructor_args]);
+ $self->add_host(\%constructur_args);
 
 =head2 get_host
 
@@ -514,20 +514,6 @@ example of a callback method:
 Debugging is enabled through Log::Log4perl. If nothing else is spesified,
 it will default to "error" level, and print to STDERR. The component-name
 you want to change is "SNMP::Effective", inless this module ins inherited.
-
-=head1 NOTES
-
-=head2 C<walk()>
-
-SNMP::Effective doesn't really do a SNMP native "walk". It makes a series
-of "getnext", which is almost the same as SNMP's walk.
-
-=head2 C<set()>
-
-If you want to use SNMP SET, you have to build your own varbind:
-
- $varbind = SNMP::VarBind($oid, $iid, $value, $type);
- $effective->add( set => $varbind );
 
 =head1 BUGS
 
