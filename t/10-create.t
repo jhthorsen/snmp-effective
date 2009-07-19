@@ -38,7 +38,7 @@ $effective->add(
 
 is(scalar($effective->hosts), scalar(@host), 'add two hosts');
 
-ok($host = $effective->shift_host, "host fetched");
+ok($host = $effective->_shift_host, "host fetched");
 ok($req = shift @$host, "request defined");
 is($req->[0], "walk", "method is ok");
 isa_ok($req->[1], "SNMP::VarList", "VarList");
@@ -48,7 +48,7 @@ $effective->add(get => 'sysName', heap => { foo => 42 });
 $effective->add(getnext => 'ifIndex');
 $effective->add(dest_host => '127.0.0.1');
 
-ok($host = $effective->shift_host, "host with defauls fetched");
+ok($host = $effective->_shift_host, "host with defauls fetched");
 ok($req = shift @$host, "first default request defined");
 is($req->[0], "get", "first default method is ok");
 ok($req = shift @$host, "second default request defined");

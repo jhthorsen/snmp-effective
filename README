@@ -77,8 +77,8 @@ OBJECT ATTRIBUTES
 
   sessions
      $int = $self->sessions;
-     $self->inc_sessions;
-     $self->dec_sessions;
+
+    Returns the number of active sessions.
 
 METHODS
   BUILDARGS
@@ -154,11 +154,6 @@ METHODS
     object.
 
     See SNMP::Effective::Callbacks for default callbacks.
-
-  add_host
-     $self->add_host($host_obj);
-     $self->add_host([$hostname, %constructor_args]);
-     $self->add_host(\%constructur_args);
 
   get_host
      $host_obj = $self->get_host($hostname);

@@ -119,8 +119,8 @@ has max_sessions => (
 =head2 sessions
 
  $int = $self->sessions;
- $self->inc_sessions;
- $self->dec_sessions;
+
+Returns the number of active sessions.
 
 =cut
 
@@ -130,8 +130,8 @@ has sessions => (
     isa => 'Int',
     default => 0,
     provides => {
-        inc => 'inc_sessions',
-        dec => 'dec_sessions',
+        inc => '_inc_sessions',
+        dec => '_dec_sessions',
         reset => '_reset_session_counter',
     },
 );
@@ -139,10 +139,10 @@ has sessions => (
 has _hostlist => (
     traits => [qw/SNMP::Effective::AttributeHelpers::Trait::HostList/],
     provides => {
-        set => 'add_host',
+        set => '_add_host',
         get => 'get_host',
         delete => 'delete_host',
-        shift => 'shift_host',
+        shift => '_shift_host',
         keys => 'hosts',
     },
 );
@@ -275,7 +275,7 @@ sub add {
             if(my $host = $self->get_host($addr)) {
                 $self->log(debug => 'Update %s: %s', $addr, $in);
                 $host->add_varlist(@{ $in->{'varlist'} });
-                $self->add_host({ # replace existing host
+                $self->_add_host({ # replace existing host
                     address  => $addr,
                     arg      => $in->{'arg'}      || $host->arg,
                     heap     => $in->{'heap'}     || $host->heap,
@@ -285,7 +285,7 @@ sub add {
             }
             else {
                 $self->log(debug => 'New %s: %s', $addr, $in);
-                $self->add_host({
+                $self->_add_host({
                     address  => $addr,
                     arg      => $in->{'arg'}      || $self->arg,
                     heap     => $in->{'heap'}     || $self->heap,
@@ -361,18 +361,18 @@ sub _dispatch {
 
     if($host and @$host == 0) {
         $self->log(info => '%s complete', "$host");
-        $self->dec_sessions;
+        $self->_dec_sessions;
     }
 
     HOST:
     while($self->sessions < $self->max_sessions or $host) {
-        $host      ||= $self->shift_host    or last HOST;
+        $host      ||= $self->_shift_host   or last HOST;
         $request     = $host->shift_varbind or next HOST;
         $snmp_method = $self->meta->snmp_callback_map->{$request->[0]};
         $req_id      = undef;
 
         unless($host->has_session) {
-            $self->inc_sessions;
+            $self->_inc_sessions;
         }
         unless($host->session) {
             # $host->fatal is set
@@ -464,12 +464,6 @@ sub add_snmp_callback {
     $self->meta->add_method("_cb_$name" => $sub);
     $self->meta->snmp_callback_map->{$name} = $snmp_method;
 }
-
-=head2 add_host
-
- $self->add_host($host_obj);
- $self->add_host([$hostname, %constructor_args]);
- $self->add_host(\%constructur_args);
 
 =head2 get_host
 
