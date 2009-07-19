@@ -5,7 +5,7 @@ use warnings;
 use lib qw(./lib);
 use SNMP::Effective;
 use Log::Log4perl qw(:easy);
-use Test::More tests => 14;
+use Test::More tests => 17;
 
 BEGIN {
     no warnings 'redefine';
