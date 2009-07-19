@@ -76,24 +76,15 @@ The method arguments are very flexible. Any of the below acts as the same:
 
 =cut
 
-use Moose;
+use Moose -traits => 'SNMP::Effective::Meta::Role';
 use SNMP;
 
-with qw/
-    SNMP::Effective::Role
-    SNMP::Effective::Lock
-    SNMP::Effective::Callbacks
-/;
+with qw/ SNMP::Effective::Role SNMP::Effective::Lock /;
+
+# load default callbacks
+require SNMP::Effective::Callbacks;
 
 our $VERSION = '1.99_001';
-
-# this package does not exist, but variable exists for backward compat
-%SNMP::Effective::Dispatch::METHOD = (
-    get     => 'get',
-    getnext => 'getnext',
-    walk    => 'getnext',
-    set     => 'set',
-);
 
 =head1 OBJECT ATTRIBUTES
 
@@ -142,17 +133,6 @@ has sessions => (
         inc => 'inc_sessions',
         dec => 'dec_sessions',
         reset => '_reset_session_counter',
-    },
-);
-
-has _method_map => (
-    traits => [qw/MooseX::AttributeHelpers::Trait::Collection::Hash/],
-    is => 'ro',
-    isa => 'HashRef',
-    default => sub { \%SNMP::Effective::Dispatch::METHOD },
-    provides => {
-        set => 'add_callback',
-        get => 'get_callback',
     },
 );
 
@@ -274,7 +254,7 @@ sub add {
     }
 
     # setup varlist
-    for my $k (keys %{ $self->_method_map }) {
+    for my $k (keys %{ $self->meta->snmp_callback_map }) {
         if($in->{$k}) {
             push @{ $in->{'varlist'} }, [
                 $k => ref $in->{$k} eq 'ARRAY' ? @{$in->{$k}} : $in->{$k}
@@ -388,7 +368,7 @@ sub _dispatch {
     while($self->sessions < $self->max_sessions or $host) {
         $host      ||= $self->shift_host    or last HOST;
         $request     = $host->shift_varbind or next HOST;
-        $snmp_method = $self->get_callback($request->[0]);
+        $snmp_method = $self->meta->snmp_callback_map->{$request->[0]};
         $req_id      = undef;
 
         unless($host->has_session) {
@@ -403,7 +383,7 @@ sub _dispatch {
         if($$host->can($snmp_method)) {
             $req_id = $$host->$snmp_method(
                           $request->[1],
-                          [ $request->[0], $self, $host, $request->[1] ]
+                          [ "_cb_$request->[0]", $self, $host, $request->[1] ]
                       );
             $self->log(trace => '$self->_%s( %s->%s(...) )',
                 $request->[0], $host, $snmp_method
@@ -456,6 +436,35 @@ sub _end {
     return $self->_dispatch($host)
 }
 
+=head2 add_snmp_callback
+
+ $class->add_snmp_callback($name, $snmp_method, sub {});
+ $self->add_snmp_callback($name, $snmp_method, sub {});
+
+Will add a callback for L<SNMP::Effective>.
+
+C<$name> is what you refere to in L<SNMP::Effective::add()>:
+
+ $self->add( $name => ['sysDescr'] );
+
+C<$snmp_method> is the method which should be called on the
+L<SNMP::Session> object.
+
+See L<SNMP::Effective::Callbacks> for examples.
+
+=cut
+
+sub add_snmp_callback {
+    my($self, $name, $snmp_method, $sub) = @_;
+
+    unless(SNMP::Session->can($snmp_method)) {
+        Carp::confess("SNMP.pm cannot '$snmp_method'");
+    }
+
+    $self->meta->add_method("_cb_$name" => $sub);
+    $self->meta->snmp_callback_map->{$name} = $snmp_method;
+}
+
 =head2 add_host
 
  $self->add_host($host_obj);
@@ -474,16 +483,6 @@ sub _end {
 
  @hostnames = $self->hosts;
 
-=head2 add_callback
-
- $self->add_method($dispatch_method => $snmp_method);
-
-=head2 get_callback
-
- $snmp_method = $self->get_callback($dispatch_method);
-
-=cut
-
 =head1 The callback method
 
 When C<SNMP> is done collecting data from a host, it calls a callback
@@ -492,7 +491,7 @@ example of a callback method:
 
  sub my_callback {
      my($host, $error) = @_
-  
+
      if($error) {
          warn "$host failed with this error: $error"
          return;
@@ -529,17 +528,6 @@ If you want to use SNMP SET, you have to build your own varbind:
 
  $varbind = SNMP::VarBind($oid, $iid, $value, $type);
  $effective->add( set => $varbind );
-
-=head2 Method map
-
-This hash contains a mapping between $effective->add($key => []),
-C<SNMP::Effective::Dispatch::$key()> and L<SNMP>.pm's C<$value> method.
-This means that you can actually add your custom method if you like.
-
-The L<walk()> method, is a working example on this, since it's actually
-a series of getnext, seen from L<SNMP>.pm's perspective.
-
-Use L<add_callback()> and L<get_callback()> to manipulate this behaviour.
 
 =head1 BUGS
 
