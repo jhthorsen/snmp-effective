@@ -2,24 +2,27 @@ NAME
     SNMP::Effective - An effective SNMP-information-gathering module
 
 VERSION
-    This document refers to version 1.06 of SNMP::Effective.
+    This document refers to version 1.06_002 of SNMP::Effective.
+
+  Replacement
+    This module will be replace by SNMP::Parallel. Please try it out.
 
 SYNOPSIS
      use SNMP::Effective;
- 
-     my $snmp = SNMP::Effective->new(
+     
+ my $snmp = SNMP::Effective->new(
          max_sessions   => $NUM_POLLERS,
          master_timeout => $TIMEOUT_SECONDS,
      );
- 
-     $snmp->add(
+     
+ $snmp->add(
          dest_host => $ip,
          callback  => sub { store_data() },
          get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
      );
      # lather, rinse, repeat
- 
-     # retrieve data from all hosts
+     
+ # retrieve data from all hosts
      $snmp->execute;
 
 DESCRIPTION
@@ -152,7 +155,7 @@ FUNCTIONS
     Inverse of make_numeric_oid: Takes a list of mib-object strings, and
     turns them into numeric format.
 
-     make_numeric_oid("sysDescr"); # return .1.3.6.1.2.1.1.1 
+     make_numeric_oid("sysDescr"); # return .1.3.6.1.2.1.1.1
 
   "match_oid"
     Takes two arguments: One OID to match against, and the OID to match.
@@ -168,18 +171,18 @@ The callback method
 
      sub my_callback {
          my($host, $error) = @_
-  
-         if($error) {
+      
+     if($error) {
              warn "$host failed with this error: $error"
              return;
          }
- 
-         my $data = $host->data;
- 
-         for my $oid (keys %$data) {
+     
+     my $data = $host->data;
+     
+     for my $oid (keys %$data) {
              print "$host returned oid $oid with this data:\n";
- 
-             print join "\n\t",
+     
+         print join "\n\t",
                    map { "$_ => $data->{$oid}{$_}" }
                        keys %{ $data->{$oid}{$_} };
              print "\n";
@@ -244,16 +247,20 @@ SUPPORT
 
     You can also look for information at:
 
-    * AnnoCPAN: Annotated CPAN documentation
+    *   AnnoCPAN: Annotated CPAN documentation
+
         <http://annocpan.org/dist/SNMP-Effective>
 
-    * CPAN Ratings
+    *   CPAN Ratings
+
         <http://cpanratings.perl.org/d/SNMP-Effective>
 
-    * RT: CPAN's request tracker
+    *   RT: CPAN's request tracker
+
         <http://rt.cpan.org/NoAuth/Bugs.html?Dist=SNMP-Effective>
 
-    * Search CPAN
+    *   Search CPAN
+
         <http://search.cpan.org/dist/SNMP-Effective>
 
 ACKNOWLEDGEMENTS
