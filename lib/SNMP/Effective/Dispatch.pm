@@ -9,8 +9,8 @@ our %METHOD  = (
     getnext => 'getnext',
     walk    => 'getnext',
     set     => 'set',
+    bulkwalk => 'bulkwalk',
 );
-
 
 sub _set {
     my $self     = shift;
@@ -102,6 +102,24 @@ sub _walk {
     }
 }
 
+sub _bulkwalk { 
+    my $self     = shift;
+    my $host     = shift;
+    my $request  = shift;
+    my $responses = shift;
+
+    return $self->_end($host, 'Timeout') unless(ref $responses);
+
+    for my $response (@$responses) {
+        for my $r (@$response) {
+            my $cur_oid = SNMP::Effective::make_numeric_oid($r->tag);
+            $host->data($r, $cur_oid);
+        }
+    }
+
+    return $self->_end($host);
+}
+
 sub _end {
     my $self  = shift;
     my $host  = shift;
@@ -141,10 +159,16 @@ sub dispatch {
 
         ### ready request
         if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
-            $req_id = $$host->$snmp_method(
-                          $request->[1],
-                          [ "_$request->[0]", $self, $host, $request->[1] ]
-                      );
+            if ($snmp_method eq 'bulkwalk') {
+                $req_id = $$host->$snmp_method(
+                              $self->{nonrepeaters}, $self->{maxrepeaters}, $request->[1], [ "_$request->[0]", $self, $host, $request->[1] ]
+                          );
+            } else {
+                $req_id = $$host->$snmp_method(
+                              $request->[1],
+                              [ "_$request->[0]", $self, $host, $request->[1] ]
+                          );
+            }
             $log->debug(
                 "\$self->_$request->[0]( ${host}->$snmp_method(...) )"
             );
