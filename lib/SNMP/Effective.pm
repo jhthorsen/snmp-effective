@@ -559,7 +559,7 @@ of "getnext", which is almost the same as SNMP's walk.
 
 If you want to use SNMP SET, you have to build your own varbind:
 
- $varbind = SNMP::VarBind($oid, $iid, $value, $type);
+ $varbind = SNMP::Varbind($oid, $iid, $value, $type);
  $effective->add( set => $varbind );
 
 =back
