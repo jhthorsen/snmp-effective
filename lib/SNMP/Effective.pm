@@ -48,6 +48,8 @@ sub new {
     my %self  = (
                     maxsessions    => 1,
                     mastertimeout  => undef,
+                    nonrepeaters   => 0,
+                    maxrepeaters   => 2,
                     _sessions      => 0,
                     _hostlist      => SNMP::Effective::HostList->new,
                     _varlist       => [],
