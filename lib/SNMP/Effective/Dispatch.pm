@@ -161,7 +161,7 @@ sub dispatch {
         if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
             if ($snmp_method eq 'bulkwalk') {
                 $req_id = $$host->$snmp_method(
-                              $self->{nonrepeaters}, $self->{maxrepeaters}, $request->[1], [ "_$request->[0]", $self, $host, $request->[1] ]
+                              $self->{nonrepeaters}, $self->{maxrepetitions}, $request->[1], [ "_$request->[0]", $self, $host, $request->[1] ]
                           );
             } else {
                 $req_id = $$host->$snmp_method(

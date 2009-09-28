@@ -49,7 +49,7 @@ sub new {
                     maxsessions    => 1,
                     mastertimeout  => undef,
                     nonrepeaters   => 0,
-                    maxrepeaters   => 2,
+                    maxrepetitions => 2,
                     _sessions      => 0,
                     _hostlist      => SNMP::Effective::HostList->new,
                     _varlist       => [],
