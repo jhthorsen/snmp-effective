@@ -159,7 +159,7 @@ sub dispatch {
 
         ### ready request
         if($$host->can($snmp_method) and $self->can("_$request->[0]")) {
-            if ($snmp_method eq 'bulkwalk') {
+            if ($snmp_method =~ /bulk/) {
                 $req_id = $$host->$snmp_method(
                               $self->{nonrepeaters}, $self->{maxrepetitions}, $request->[1], [ "_$request->[0]", $self, $host, $request->[1] ]
                           );
