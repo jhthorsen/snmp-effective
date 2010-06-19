@@ -2,27 +2,27 @@ NAME
     SNMP::Effective - An effective SNMP-information-gathering module
 
 VERSION
-    This document refers to version 1.06_002 of SNMP::Effective.
+    1.07
 
   Replacement
     This module will be replace by SNMP::Parallel. Please try it out.
 
 SYNOPSIS
      use SNMP::Effective;
-     
- my $snmp = SNMP::Effective->new(
+ 
+     my $snmp = SNMP::Effective->new(
          max_sessions   => $NUM_POLLERS,
          master_timeout => $TIMEOUT_SECONDS,
      );
-     
- $snmp->add(
+ 
+     $snmp->add(
          dest_host => $ip,
          callback  => sub { store_data() },
          get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
      );
      # lather, rinse, repeat
-     
- # retrieve data from all hosts
+ 
+     # retrieve data from all hosts
      $snmp->execute;
 
 DESCRIPTION
@@ -171,18 +171,18 @@ The callback method
 
      sub my_callback {
          my($host, $error) = @_
-      
-     if($error) {
+  
+         if($error) {
              warn "$host failed with this error: $error"
              return;
          }
-     
-     my $data = $host->data;
-     
-     for my $oid (keys %$data) {
+ 
+         my $data = $host->data;
+ 
+         for my $oid (keys %$data) {
              print "$host returned oid $oid with this data:\n";
-     
-         print join "\n\t",
+ 
+             print join "\n\t",
                    map { "$_ => $data->{$oid}{$_}" }
                        keys %{ $data->{$oid}{$_} };
              print "\n";

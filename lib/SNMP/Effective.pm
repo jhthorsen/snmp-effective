@@ -11,7 +11,7 @@ use SNMP::Effective::Logger;
 use Time::HiRes qw/usleep/;
 use POSIX qw(:errno_h);
 
-our $VERSION = '1.06_002';
+our $VERSION = '1.07';
 our @ISA     = qw/SNMP::Effective::Dispatch/;
 our %SNMPARG = (
     Version   => '2c',
@@ -306,7 +306,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-This document refers to version 1.06_002 of SNMP::Effective.
+1.07
 
 =head2 Replacement
 
