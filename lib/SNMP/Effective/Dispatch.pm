@@ -115,14 +115,14 @@ sub dispatch {
 
     warn sprintf "Sessions/max-sessions: %i<%i", $self->{'_sessions'}, $self->max_sessions if DEBUG;
 
-    unless($hostlist->count or $self->{'_sessions'}) {
+    unless($hostlist->length or $self->{'_sessions'}) {
         warn "SNMP::finish() is next up" if DEBUG;
         SNMP::finish();
     }
 
     $self->_unlock;
 
-    return $hostlist->count || $self->{'_sessions'};
+    return $hostlist->length || $self->{'_sessions'};
 }
 
 sub _set {

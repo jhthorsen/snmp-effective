@@ -49,7 +49,7 @@ sub length {
 
 =cut
 
-sub has_host {
+sub get_host {
     return $_[0]->{$_[1]};
 }
 

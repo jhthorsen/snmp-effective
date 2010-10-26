@@ -6,35 +6,45 @@ use SNMP::Effective;
 
 plan tests => 14;
 
+my @host = qw/10.1.1.2 10.1.1.3/;
+my @walk = qw/sysDescr/;
+my $timeout = 3;
+
 {
     my $effective = SNMP::Effective->new;
     my $hostlist = $effective->hostlist;
     my $varlist = $effective->_varlist;
+    my $host;
 
     $effective->add( desthost => '127.0.0.1' );
-    is($hostlist->count, 1, 'got one host');
-    is(@$varlist, 0, 'got zero varlist items');
+    is($hostlist->length, 1, 'got one host');
 
-    $effective->add( desthost => '127.0.0.1' );
-    is($hostlist->count, 1, 'got one host');
+    $effective->add( desthost => '127.0.0.2' );
+    is($hostlist->length, 2, 'got two hosts');
 
-    $effective->add( desthost => '127.0.0.1' );
+    $effective->add( get => '127.0.0.1' );
+    is($hostlist->length, 2, 'got two host');
+    is(@$varlist, 1, 'effective got a varlist item...');
 
-    $effective->add( dest_host => [qw/ 127.2 127.0.0.3 /] );
-    $effective->add( Dest_hOst => '127.0.0.4' );
+    TODO: {
+        local $TODO = 'not sure if this is correct';
+        $host = $hostlist->{'127.0.0.2'};
+        is(@$host, 1, '...127.0.0.2 also got a varlist item');
+    }
 
     # get, getnext, walk, set
-    $effective->add( get => '1.3.4' );
+    $effective->add( dest_host => ['127.0.0.1'], get => '1.3.4' );
+    $effective->add( DesT_hOst => '127.0.0.1', getnext => ['1.3.5'] );
+    $effective->add( DesT_hOst => '127.0.0.1', walk => ['1.3.5'] );
+    $effective->add( DesT_hOst => '127.0.0.1', set => ['1.3.5'] );
 
-    # alter one host
+    $host = $hostlist->{'127.0.0.1'};
+    is(@$host, 4, '127.0.0.1 got four varlist item');
+
     $effective->add(
-        DesT_hOst => '127.0.0.4'
-        walk => ['1.3.5'],
+        Dest_Host => \@host,
+        Arg => { Timeout => $timeout },
+        CallbaCK => sub { return "test" },
+        walK => \@walk,
     );
-$effective->add(
-    Dest_Host => \@host,
-    Arg      => { Timeout => $timeout },
-    CallbaCK => sub { return "test" },
-    walK     => \@walk,
-);
-
+}
