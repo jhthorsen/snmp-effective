@@ -5,7 +5,7 @@ use Test::More;
 use SNMP::Effective::HostList;
 use SNMP::Effective::Host;
 
-plan tests => 11;
+plan tests => 17;
 
 my $list = SNMP::Effective::HostList->new;
 
