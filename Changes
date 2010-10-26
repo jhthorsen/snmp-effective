@@ -1,5 +1,13 @@
 Revision history for SNMP-Effective
 
+1.08
+       * Fix rename attribute in SNMP::Effective::Host: sesssion != session
+       * Change locking to pipe(...)
+       * Change remove perlcritic test
+       * Change SNMP::Effective::Logger is replaced with SNMP_EFFECTIVE_DEBUG
+         and warn()
+       * Reformatted code and add more documentation
+
 1.07     Sat Jun 19 14:09:52 CEST 2010
        * Clean up 1.06_02 (not a dev release)
        * Clean up repository

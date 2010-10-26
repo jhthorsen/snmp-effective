@@ -1,13 +1,31 @@
 package SNMP::Effective::VarList;
 
+=head1 NAME
+
+SNMP::Effective::VarList - Helper module for SNMP::Effective::Host
+
+=head1 DESCRIPTION
+
+Thist module allows oid/oid-methods to be specified in different ways.
+
+=head1 SYNOPSIS
+
+    use SNMP::Effective::VarList;
+    tie @varlist, 'SNMP::Effective::VarList';
+
+    push @varlist, [$method1, $oid1], [$method2, $oid2];
+    push @varlist, [$method1, $Varbind_obj1], [$method2, $Varbind_obj2];
+    push @varlist, [$method1, $VarList_obj1], [$method2, $VarList_obj2];
+
+=cut
+
 use warnings;
 use strict;
 use SNMP;
 use Tie::Array;
+use Carp qw/ confess /;
 
-our @ISA     = qw/Tie::StdArray/;
-our $VERSION = '1.05';
-
+use base qw/ Tie::StdArray /;
 
 sub PUSH {
     my $self = shift;
@@ -15,38 +33,37 @@ sub PUSH {
 
     LIST:
     for my $list (@args) {
-        next LIST unless(ref $list eq 'ARRAY' and @$list > 1);
-        next LIST unless($SNMP::Effective::Dispatch::METHOD{$list->[0]});
+        unless(ref $list eq 'ARRAY') {
+            confess "A list of array-refs are required to push()";
+        }
+        unless(@$list > 1) {
+            confess "Each array-ref to push() must have more than one element";
+        }
+        unless($SNMP::Effective::Dispatch::METHOD{$list->[0]}) {
+            confess "The first element in the array-ref to push() must exist in \%SNMP::Effective::Dispatch::METHOD";
+        }
 
         my $method = $list->[0];
-        my $i      = 0;
+        my $i = 0;
         my @varlist;
 
         OID:
         for my $oid (@$list) {
-            next unless($i++); # skip the first element
+            next unless($i++); # skip the first element, containing the method
 
-            ### create varbind
-            if(ref $oid eq '') {
-                $oid = SNMP::Varbind->new([
-                           $oid, # undef, $value, $type
-                       ]);
+            if(ref $oid eq '') { # create varbind
+                $oid = SNMP::Varbind->new([ $oid ]);
             }
-
-            ### append varbind
-            if(ref $oid eq 'SNMP::Varbind') {
+            if(ref $oid eq 'SNMP::Varbind') { # append varbind
                 push @varlist, $oid;
                 next OID;
             }
-
-            ### append varlist
-            if(ref $oid eq 'SNMP::VarList') {
+            if(ref $oid eq 'SNMP::VarList') { # append varlist
                 push @varlist, @$oid;
                 next OID;
             }
         }
 
-        ### add varlist
         if(@varlist) {
             push @$self, [ $method, SNMP::VarList->new(@varlist) ];
         }
@@ -55,56 +72,14 @@ sub PUSH {
     return $self->FETCHSIZE;
 }
 
-1;
-__END__
-
-=head1 NAME
-
-SNMP::Effective::VarList - Helper module for SNMP::Effective
-
-=head1 VERSION
-
-This document refers to version 1.05 of SNMP::Effective::VarList.
-
-=head1 DESCRIPTION
-
-This is a helper module for SNMP::Effective
-
-=head1 METHODS
-
-No methods. This class is used for Tieing the list of OIDs.
-
-=head1 DEBUGGING
-
-Debugging is enabled through Log::Log4perl. If nothing else is spesified,
-it will default to "error" level, and print to STDERR. The component-name
-you want to change is "SNMP::Effective", inless this module ins inherited.
-
-=head1 NOTES
-
-Possible formats of list pushed onto the array:
-
- (
-     [$method1, $oid1],         [$method2, $oid2],
-     [$method1, $Varbind_obj1], [$method2, $Varbind_obj2],
-     [$method1, $VarList_obj1], [$method2, $VarList_obj2],
- );
-
-=head1 TODO
-
 =head1 AUTHOR
-
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
 
 =head1 ACKNOWLEDGEMENTS
 
-Various contributions by Oliver Gorwits.
-
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Jan Henning Thorsen, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+See L<SNMP::Effective>
 
 =cut
+
+1;
