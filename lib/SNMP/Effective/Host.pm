@@ -1,44 +1,113 @@
 package SNMP::Effective::Host;
 
+=head1 NAME
+
+SNMP::Effective::Host - A SNMP::Effective host class
+
+=head1 DESCRIPTION
+
+A host object holds all the information pr. host
+L<SNMP::Effective> requires. This C<$host> object
+is available in L<SNMP::Effective/THE CALLBACK METHOD>.
+
+=cut
+
 use warnings;
 use strict;
-use overload '""'  => sub { shift()->{'_address'} };
-use overload '${}' => sub { shift()->{'_session'} };
-use overload '@{}' => sub { shift()->{'_varlist'} };
+use SNMP::Effective::VarList;
+use Carp qw/confess/;
 
-our $VERSION = '1.05';
+use overload '""' => sub { shift->{'_address'} };
+use overload '${}' => sub { shift->{'_session'} };
+use overload '@{}' => sub { shift->{'_varlist'} };
 
+=head1 ATTRIBUTES
 
-BEGIN { ## no critic # for strict
+=head2 address
+
+Get host address, also overloaded by "$self".
+
+=head2 session
+
+Get L<SNMP::Session>, also overloaded by $$self.
+
+=head2 varlist
+
+The remaining OIDs to get/set, also overloaded by @$self.
+
+=head2 callback
+
+Get a ref to the callback method.
+
+=head2 heap
+
+Get/set any data you like. By default, it returns a hash-ref, so you can do:
+
+    $host->heap->{'mykey'} = "remember this";
+ 
+=cut
+
+BEGIN {
     no strict 'refs';
     my %sub2key = qw/
                       address   _address
-                      sesssion  _session
+                      session   _session
                       varlist   _varlist
                       callback  _callback
                       heap      _heap
-                      log       _log
                   /;
+
     for my $subname (keys %sub2key) {
         *$subname = sub {
-            my($self, $set)               = @_;
+            my($self, $set) = @_;
             $self->{ $sub2key{$subname} } = $set if(defined $set);
             $self->{ $sub2key{$subname} };
         }
     }
 }
 
+=head2 arg
+
+Get/set L<SNMP::Session> args.
+
+=cut
+
+sub arg {
+    my $self = shift;
+    my $arg = shift;
+
+    if(ref $arg eq 'HASH') {
+        $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
+    }
+
+    return %{$self->{'_arg'}}, DestHost => "$self" if(wantarray);
+    return $self->{'_arg'};
+}
+
+=head2 data
+
+    $hash_ref = $self->data;
+    $hash_ref = $self->data(\@data0, $ref_oid0, ...);
+
+Get the retrieved data or add more data to the host cache.
+
+C<@data0> looks like: C<[ $oid0, $iid0, $value0, $type0 ]>, where
+C<$ref_oid0> is used to figure out the C<$iid> unless specified
+in C<@data0>. C<$iid0> will fallback to "1", if everything fails.
+
+=cut
+
 sub data {
     my $self = shift;
 
     if(@_) {
-        my $r       = shift;
+        my $r = shift;
         my $ref_oid = shift || '';
-        my $iid     = $r->[1]
-                   || SNMP::Effective::match_oid($r->[0], $ref_oid)
-                   || 1;
+        my $iid = $r->[1]
+               || SNMP::Effective::match_oid($r->[0], $ref_oid)
+               || 1;
 
-        $ref_oid    =~ s/^\.//mx;
+        $ref_oid =~ s/^\.//mx;
 
         $self->{'_data'}{$ref_oid}{$iid} = $r->[2];
         $self->{'_type'}{$ref_oid}{$iid} = $r->[3];
@@ -46,6 +115,45 @@ sub data {
 
     return $self->{'_data'};
 }
+
+=head1 METHODS
+
+=head2 new
+
+    $self = $class->new($address);
+
+Object constructor. C<$address> can also be an ip-address.
+
+=cut
+
+sub new {
+    my $class = shift;
+    my $args = shift;
+    my $log = shift;
+    my($session, @varlist);
+
+    tie @varlist, "SNMP::Effective::VarList";
+
+    $args = { address => $args } unless(ref $args eq 'HASH');
+    $args->{'address'} or confess 'Usage: $class->new(\%args)';
+
+    return bless {
+        _address => $args->{'address'},
+        _session => \$session,
+        _varlist => \@varlist,
+        _callback => $args->{'callback'} || sub {},
+        _arg => $args->{'arg'} || {},
+        _data => {},
+        _heap => {},
+    }, $class;
+}
+
+=head2 clear_data
+
+Remove data from the host cache. Will make C</data> return an
+empty hash-ref.
+
+=cut
 
 sub clear_data {
     my $self = shift;
@@ -56,122 +164,14 @@ sub clear_data {
     return;
 }
 
-sub arg {
-    my $self = shift;
-    my $arg  = shift;
-
-    if(ref $arg eq 'HASH') {
-        $self->{'_arg'}{$_} = $arg->{$_} for(keys %$arg);
-    }
-
-    return %{$self->{'_arg'}}, DestHost => "$self" if(wantarray);
-    return   $self->{'_arg'};
-}
-
-sub new {
-    my $class = shift;
-    my $host  = shift or return;
-    my $log   = shift;
-    my($session, @varlist);
-
-    tie @varlist, "SNMP::Effective::VarList";
-
-    return bless {
-        _address  => $host,
-        _log      => $log,
-        _session  => \$session,
-        _varlist  => \@varlist,
-        _callback => sub {},
-        _arg      => {},
-        _data     => {},
-        _heap     => {},
-    }, $class;
-}
-
-1;
-__END__
-
-=head1 NAME
-
-SNMP::Effective::Host - Helper module for SNMP::Effective
-
-=head1 VERSION
-
-This document refers to version 1.05 of SNMP::Effective::Host.
-
-=head1 DESCRIPTION
-
-This is a helper module for SNMP::Effective
-
-=head1 METHODS
-
-=head2 C<new>
-
-Constructor
-
-=head2 C<arg>
-
-Get SNMP::Session args
-
-=head2 C<data>
-
-Get the retrieved data 
-
-=head2 C<clear_data>
-
-Remove data from the host cache
-
-=head2 C<address>
-
-Get host address, also overloaded by "$self"
-
-=head2 C<sesssion>
-
-Get SNMP::Session, also overloaded by $$self
-
-=head2 C<varlist>
-
-The remaining OIDs to get/set, also overloaded by @$self
-
-=head2 C<callback>
-
-Get a ref to the callback method
-
-=head2 C<heap>
-
-Get / set any data you like. By default, it returns a hash-ref, so you can do:
-
- $host->heap->{'mykey'} = "remember this";
-           
-=head2 C<log>
-
-Get the same logger as SNMP::Effective use. Ment to be used, if you want to
-log through the same interface as SNMP::Effective.
-
-=head1 DEBUGGING
-
-Debugging is enabled through Log::Log4perl. If nothing else is spesified,
-it will default to "error" level, and print to STDERR. The component-name
-you want to change is "SNMP::Effective", inless this module ins inherited.
-
-=head1 NOTES
-
-=head1 TODO
-
 =head1 AUTHOR
-
-Jan Henning Thorsen, C<< <pm at flodhest.net> >>
 
 =head1 ACKNOWLEDGEMENTS
 
-Various contributions by Oliver Gorwits.
-
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2007 Jan Henning Thorsen, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+See L<SNMP::Effective>
 
 =cut
 
+1;
