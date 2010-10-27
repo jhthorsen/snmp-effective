@@ -118,6 +118,10 @@ Returns a hash with the default args
 
 Returns a ref to the default callback sub-routine.
 
+=head2 heap
+
+Returns a value for the default heap.
+
 =cut
 
 BEGIN {
@@ -129,6 +133,7 @@ BEGIN {
                       hostlist        _hostlist
                       arg             _arg
                       callback        _callback
+                      heap            _heap
                   /;
 
     for my $subname (keys %sub2key) {
@@ -254,7 +259,7 @@ sub add {
     my %in = _format_arguments(@_) or return;
     my $hostlist = $self->hostlist;
     my $varlist = $self->_varlist;
-    my $new_varlist = [];
+    my @new_varlist;
 
     # setup desthost input argument
     if($in{'desthost'} and ref $in{'desthost'} ne 'ARRAY') {
@@ -270,32 +275,42 @@ sub add {
         if(@{$in{$key}}) {
             warn "Adding $key(@{ $in{$key} })" if DEBUG;
             unshift @{$in{$key}}, $key;
-            push @$new_varlist, $in{$key};
+            push @new_varlist, $in{$key};
         }
     }
 
-    # fallback to existing varlist
-    $new_varlist = $varlist unless(@$new_varlist);
-
-    # add/update hosts
     if(ref $in{'desthost'} eq 'ARRAY') {
         for my $addr (@{$in{'desthost'}}) {
-            my $host = $hostlist->get_host($addr)
-                    || $hostlist->add_host(address => $addr, arg => $self->arg, callback => $self->callback);
 
-            push @$host, @$new_varlist;
-            $host->arg($in{'arg'});
-            $host->callback($in{'callback'});
-            $host->heap($in{'heap'});
+            # add/update hosts
+            my $host = $hostlist->get_host($addr)
+                    || $hostlist->add_host(
+                           address => $addr,
+                           arg => $self->arg,
+                           callback => $self->callback,
+                           heap => $self->heap,
+                       );
+
+            push @$host, @$host ? @new_varlist : @$varlist;
+            $host->arg($in{'arg'}) if($in{'arg'});
+            $host->callback($in{'callback'}) if($in{'callback'});
+            $host->heap($in{'heap'}) if($in{'heap'});
         }
     }
-
-    # update all existing hosts
     else {
-        push @$varlist, @$new_varlist;
+
+        # update $self with generic args
         $self->arg($in{'arg'}) if(ref $in{'arg'} eq 'HASH');
         $self->callback($in{'callback'}) if(ref $in{'callback'});
-        $self->heap($in{'heap'}) if(defined $in{'heap'});
+        $self->heap($in{'heap'}) if(exists $in{'heap'});
+
+        # update $self and all hosts with @new_varlist
+        if(@new_varlist) {
+            push @$varlist, @new_varlist;
+            for my $host (values %$hostlist) {
+                push @$host, @new_varlist;
+            }
+        }
     }
 
     return 1;

@@ -144,7 +144,7 @@ sub new {
         _callback => $args->{'callback'} || sub {},
         _arg => $args->{'arg'} || {},
         _data => {},
-        _heap => {},
+        _heap => $args->{'heap'},
     }, $class;
 }
 

@@ -7,6 +7,8 @@ Revision history for SNMP-Effective
        * Change SNMP::Effective::Logger is replaced with SNMP_EFFECTIVE_DEBUG
          and warn()
        * Reformatted code and add more documentation
+       * Add heap can be set on SNMP:Effective object and passed on to
+         new $host objects
 
 1.07     Sat Jun 19 14:09:52 CEST 2010
        * Clean up 1.06_02 (not a dev release)
