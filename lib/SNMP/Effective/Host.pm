@@ -139,12 +139,12 @@ sub new {
 
     return bless {
         _address => $args->{'address'},
-        _session => \$session,
-        _varlist => \@varlist,
-        _callback => $args->{'callback'} || sub {},
         _arg => $args->{'arg'} || {},
+        _callback => $args->{'callback'} || sub {},
         _data => {},
         _heap => $args->{'heap'},
+        _session => \$session,
+        _varlist => \@varlist,
     }, $class;
 }
 

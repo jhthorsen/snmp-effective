@@ -4,11 +4,7 @@ use lib qw(lib);
 use Test::More;
 use SNMP::Effective;
 
-plan tests => 14;
-
-my @host = qw/10.1.1.2 10.1.1.3/;
-my @walk = qw/sysDescr/;
-my $timeout = 3;
+plan tests => 13;
 
 {
     my $effective = SNMP::Effective->new;
