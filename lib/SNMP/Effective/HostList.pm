@@ -43,7 +43,7 @@ sub length {
     return 0 + keys %{$_[0]};
 }
 
-=head2 has_host
+=head2 get_host
 
     $host_obj = $self->get_host($address);
 
