@@ -12,35 +12,39 @@ plan tests => 13;
     my $varlist = $effective->_varlist;
     my $host;
 
+    # adding hosts to a clean $effective object
     $effective->add( desthost => '127.0.0.1' );
-    is($hostlist->length, 1, 'got one host');
-
     $effective->add( desthost => '127.0.0.2' );
     is($hostlist->length, 2, 'got two hosts');
+    is(@$varlist, 0, 'got two hosts');
 
-    $effective->add( get => '127.0.0.1' );
-    is($hostlist->length, 2, 'got two host');
-    is(@$varlist, 1, 'effective got a varlist item...');
+    # adding requests to all hosts
+    $effective->add( getnext => '1.2.3', walk => ['1.2.3'] );
+    $effective->add( ignored_option => '1.2.3' );
+    is(@$varlist, 2, 'two requests added to $effective');
+    is(@{ $hostlist->{'127.0.0.1'} }, 2, 'two requests added to 127.0.0.1');
+    is(@{ $hostlist->{'127.0.0.2'} }, 2, 'two requests added to 127.0.0.2');
 
-    TODO: {
-        local $TODO = 'not sure if this is correct';
-        $host = $hostlist->{'127.0.0.2'};
-        is(@$host, 1, '...127.0.0.2 also got a varlist item');
-    }
+    # adding request to a specific host
+    $effective->add( desthost => ['127.0.0.2'], getnext => '2.3.4' );
+    is(@{ $hostlist->{'127.0.0.2'} }, 3, 'another request added to just 127.0.0.2');
+    is(@$varlist, 2, 'another request for 127.0.0.2, not added to $effective');
 
-    # get, getnext, walk, set
-    $effective->add( dest_host => ['127.0.0.1'], get => '1.3.4' );
-    $effective->add( DesT_hOst => '127.0.0.1', getnext => ['1.3.5'] );
-    $effective->add( DesT_hOst => '127.0.0.1', walk => ['1.3.5'] );
-    $effective->add( DesT_hOst => '127.0.0.1', set => ['1.3.5'] );
+    # updating arg
+    $effective->add( desthost => '127.0.0.1', arg => { Community => 'foo-community' } );
+    is($hostlist->{'127.0.0.1'}->arg->{'Community'}, 'foo-community', 'update Community for 127.0.0.1');
+    is(@$varlist, 2, '$effective varlist still has two elements after Community update');
+    is(@{ $hostlist->{'127.0.0.1'} }, 2, '127.0.0.1 varlist still has two elements after Community update');
 
-    $host = $hostlist->{'127.0.0.1'};
-    is(@$host, 4, '127.0.0.1 got four varlist item');
-
+    # setting default community and heap
     $effective->add(
-        Dest_Host => \@host,
-        Arg => { Timeout => $timeout },
-        CallbaCK => sub { return "test" },
-        walK => \@walk,
+        arg => { Community => 'default-community' },
+        heap => { the_answer => 42 },
     );
+
+    # adding new host
+    $effective->add( desthost => '127.0.0.3' );
+    is(@{ $hostlist->{'127.0.0.3'} }, 2, '127.0.0.3 varlist got two elements from $effective');
+    is($hostlist->{'127.0.0.3'}->arg->{'Community'}, 'default-community', 'Community for 127.0.0.3 is from $effective');
+    is($hostlist->{'127.0.0.3'}->heap->{'the_answer'}, 42, 'heap for 127.0.0.3 is from $effective');
 }
