@@ -291,7 +291,7 @@ sub add {
                            heap => $self->heap,
                        );
 
-            push @$host, @$host ? @new_varlist : @$varlist;
+            push @$host, (@$host or @new_varlist) ? @new_varlist : @$varlist;
             $host->arg($in{'arg'}) if($in{'arg'});
             $host->callback($in{'callback'}) if($in{'callback'});
             $host->heap($in{'heap'}) if($in{'heap'});
