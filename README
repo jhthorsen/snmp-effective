@@ -2,28 +2,26 @@ NAME
     SNMP::Effective - An effective SNMP-information-gathering module
 
 VERSION
-    1.07
-
-  Replacement
-    This module will be replace by SNMP::Parallel. Please try it out.
+    1.08
 
 SYNOPSIS
-     use SNMP::Effective;
- 
-     my $snmp = SNMP::Effective->new(
-         max_sessions   => $NUM_POLLERS,
-         master_timeout => $TIMEOUT_SECONDS,
-     );
- 
-     $snmp->add(
-         dest_host => $ip,
-         callback  => sub { store_data() },
-         get       => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
-     );
-     # lather, rinse, repeat
- 
-     # retrieve data from all hosts
-     $snmp->execute;
+        use SNMP::Effective;
+
+        my $snmp = SNMP::Effective->new(
+            max_sessions => $NUM_POLLERS,
+            master_timeout => $TIMEOUT_SECONDS,
+        );
+
+        $snmp->add(
+            dest_host => $ip,
+            callback => sub { store_data() },
+            get => [ '1.3.6.1.2.1.1.3.0', 'sysDescr' ],
+        );
+
+        # lather, rinse, repeat
+
+        # retrieve data from all hosts
+        $snmp->execute;
 
 DESCRIPTION
     This module collects information, over SNMP, from many hosts and many
@@ -61,20 +59,39 @@ METHODS ARGUMENTS
     The method arguments are very flexible. Any of the below acts as the
     same:
 
-     $obj->method(MyKey   => $value);
-     $obj->method(my_key  => $value);
-     $obj->method(My_Key  => $value);
-     $obj->method(mYK__EY => $value);
+        $obj->method(MyKey => $value);
+        $obj->method(my_key => $value);
+        $obj->method(My_Key => $value);
+        $obj->method(mYK__EY => $value);
+
+ATTRIBUTES
+  master_timeout
+    Get/Set the master timeout
+
+  max_sessions
+    Get/Set the number of max session
+
+  hostlist
+    Returns a list containing all the hosts.
+
+  arg
+    Returns a hash with the default args
+
+  callback
+    Returns a ref to the default callback sub-routine.
+
+  heap
+    Returns a value for the default heap.
 
 METHODS
-  "new"
-    This is the object constructor, and returns an SNMP::Effective object.
+  new
+    This is the object constructor, and returns a SNMP::Effective object.
 
    Arguments
     "max_sessions"
         Maximum number of simultaneous SNMP sessions.
 
-    "mastertimeout"
+    "master_timeout"
         Maximum number of seconds before killing execute.
 
     All other arguments are passed on to $snmp_effective->add( ... ).
@@ -83,9 +100,9 @@ METHODS
     Adding information about what SNMP data to get and where to get it.
 
    Arguments
-    "dest_host"
+    dest_host
         Either a single host, or an array-ref that holds a list of hosts.
-        The format is whatever "SNMP" can handle.
+        The format is whatever SNMP can handle.
 
     "arg"
         A hash-ref of options, passed on to SNMP::Session.
@@ -98,7 +115,7 @@ METHODS
         This can hold anything you want. By default it's an empty hash-ref.
 
     "get" / "getnext" / "walk"
-        Either "oid object", "numeric oid", SNMP::Varbind SNMP::VarList or
+        Either "oid object", "numeric oid", "SNMP::Varbind SNMP::VarList" or
         an array-ref containing any combination of the above.
 
     "set"
@@ -112,44 +129,26 @@ METHODS
         change arg, callback or add OIDs on a per-host basis.
 
     "get" / "getnext" / "walk" / "set"
-        The OID list submitted to "add()" will be added to all dest_host, if
+        The OID list submitted to "add" will be added to all dest_host, if
         no dest_host is specified.
 
     "arg" / "callback"
         This can be used to alter all hosts' SNMP arguments or callback
         method.
 
-  "execute"
+  execute
     This method starts setting and/or getting data. It will run as long as
     necessary, or until "master_timeout" seconds has passed. Every time some
     data is set and/or retrieved, it will call the callback-method, as
     defined globally or per host.
 
-  "master_timeout"
-     Get/Set the master timeout
-
-  "max_sessions"
-     Get/Set the number of max session
-
-  "log"
-    This returns the Log4perl object that is used for logging:
-
-     $self->log->warn("log this message!");
-
-  "hostlist"
-     Returns a list containing all the hosts.
-
-  "arg"
-     Returns a hash with the default args
-
-  "callback"
-     Returns a ref to the default callback sub-routine.
-
 FUNCTIONS
-  "make_name_oid"
-    Takes a list of numeric OIDs and turns them into an mib-object string.
+  "match_oid"
+    Takes two arguments: One OID to match against, and the OID to match.
 
-     make_name_oid("1.3.6.1.2.1.1.1"); # return sysDescr
+        match_oid("1.3.6.10",   "1.3.6");    # return 10
+        match_oid("1.3.6.10.1", "1.3.6");    # return 10.1
+        match_oid("1.3.6.10",   "1.3.6.11"); # return undef
 
   "make_numeric_oid"
     Inverse of make_numeric_oid: Takes a list of mib-object strings, and
@@ -157,31 +156,29 @@ FUNCTIONS
 
      make_numeric_oid("sysDescr"); # return .1.3.6.1.2.1.1.1
 
-  "match_oid"
-    Takes two arguments: One OID to match against, and the OID to match.
+  "make_name_oid"
+    Takes a list of numeric OIDs and turns them into an mib-object string.
 
-     match_oid("1.3.6.10",   "1.3.6");    # return 10
-     match_oid("1.3.6.10.1", "1.3.6");    # return 10.1
-     match_oid("1.3.6.10",   "1.3.6.11"); # return undef
+        make_name_oid("1.3.6.1.2.1.1.1"); # return sysDescr
 
-The callback method
+THE CALLBACK METHOD
     When "SNMP" is done collecting data from a host, it calls a callback
     method, provided by the "Callback => sub{}" argument. Here is an example
     of a callback method:
 
      sub my_callback {
          my($host, $error) = @_
-  
+
          if($error) {
              warn "$host failed with this error: $error"
              return;
          }
- 
+
          my $data = $host->data;
- 
+
          for my $oid (keys %$data) {
              print "$host returned oid $oid with this data:\n";
- 
+
              print join "\n\t",
                    map { "$_ => $data->{$oid}{$_}" }
                        keys %{ $data->{$oid}{$_} };
@@ -190,10 +187,11 @@ The callback method
      }
 
 DEBUGGING
-    Debugging is enabled through Log::Log4perl. If nothing else is
-    spesified, it will default to "error" level, and print to STDERR. The
-    component-name you want to change is "SNMP::Effective", inless this
-    module ins inherited.
+    Debugging is enabled through setting the environment variable
+
+        SNMP_EFFECTIVE_DEBUG=1 perl myscript.pl
+
+    It will print the debug information to STDERR.
 
 NOTES
     "walk"
@@ -206,30 +204,6 @@ NOTES
          $varbind = SNMP::VarBind($oid, $iid, $value, $type);
          $effective->add( set => $varbind );
 
-TODO
-    Improve debugging support
-
-DEPENDENCIES
-    In addition to the contents of the standard Perl distribution, this
-    module requires the following:
-
-    "Log::Log4perl"
-        By default the level of reporting is set to "error" and will be
-        directed to "STDERR".
-
-    "SNMP"
-        Note that this is not the same as "Net::SNMP" on the CPAN. You want
-        the "SNMP" CPAN distribution or the "SNMP" distribution.
-
-    "Time::HiRes"
-        Perl versions greater than 5.7.3 are supplied with this module.
-
-    "Tie::Array"
-        Perl versions greater than 5.5.0 are supplied with this module.
-
-    "constant" and "overload"
-        Perl versions greater than 5.4.0 will have these modules.
-
 AUTHOR
     Jan Henning Thorsen, "<pm at flodhest.net>"
 
@@ -239,29 +213,6 @@ BUGS
     <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=SNMP-Effective>. I will
     be notified, and then you'll automatically be notified of progress on
     your bug as I make changes.
-
-SUPPORT
-    You can find documentation for this module with the perldoc command.
-
-        perldoc SNMP::Effective
-
-    You can also look for information at:
-
-    *   AnnoCPAN: Annotated CPAN documentation
-
-        <http://annocpan.org/dist/SNMP-Effective>
-
-    *   CPAN Ratings
-
-        <http://cpanratings.perl.org/d/SNMP-Effective>
-
-    *   RT: CPAN's request tracker
-
-        <http://rt.cpan.org/NoAuth/Bugs.html?Dist=SNMP-Effective>
-
-    *   Search CPAN
-
-        <http://search.cpan.org/dist/SNMP-Effective>
 
 ACKNOWLEDGEMENTS
     Various contributions by Oliver Gorwits.

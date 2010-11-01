@@ -15,7 +15,7 @@ is available in L<SNMP::Effective/THE CALLBACK METHOD>.
 use warnings;
 use strict;
 use SNMP::Effective::VarList;
-use Carp qw/confess/;
+use Carp qw/ cluck confess /;
 
 use overload '""' => sub { shift->{'_address'} };
 use overload '${}' => sub { shift->{'_session'} };
@@ -30,6 +30,10 @@ Get host address, also overloaded by "$self".
 =head2 session
 
 Get L<SNMP::Session>, also overloaded by $$self.
+
+=head2 sesssion
+
+Alias for L</session> (because of previous typo). Will be deprecated.
 
 =head2 varlist
 
@@ -64,6 +68,11 @@ BEGIN {
             $self->{ $sub2key{$subname} };
         }
     }
+
+    *sesssion = sub {
+        cluck "->sesssion() will be deprecated. Use ->session()> instead";
+        return shift->session(@_);
+    };
 }
 
 =head2 arg

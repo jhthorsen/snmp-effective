@@ -1,10 +1,11 @@
 Revision history for SNMP-Effective
 
-1.08
+1.08     Mon Nov  1 12:11:20 CET 2010
        * Fix rename attribute in SNMP::Effective::Host: sesssion != session
-       * Change locking to pipe(...)
-       * Change remove perlcritic test
-       * Change SNMP::Effective::Logger is replaced with SNMP_EFFECTIVE_DEBUG
+       * Change locking. Use pipe(...) with a single byte-read instead of flock()
+         - flock() did not work, since it was the same process!
+       * Remove perlcritic test
+       * Remove SNMP::Effective::Logger is replaced with SNMP_EFFECTIVE_DEBUG
          and warn()
        * Reformatted code and add more documentation
        * Add heap can be set on SNMP:Effective object and passed on to
