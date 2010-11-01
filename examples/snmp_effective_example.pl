@@ -7,7 +7,7 @@ snmp_effective_example.pl
 =cut
 
 sub say { print @_, "\n" } # use feature qw/say/;
-#BEGIN { $ENV{'SNMP_EFFECTIVE_DEBUG'} = 1 } # for debugging
+BEGIN { $ENV{'SNMP_EFFECTIVE_DEBUG'} = 1 } # for debugging
 
 use warnings;
 use strict;

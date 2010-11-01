@@ -281,7 +281,7 @@ sub add {
     if(ref $in{'desthost'} eq 'ARRAY') {
         for my $addr (@{$in{'desthost'}}) {
             my $host = $hostlist->get_host($addr)
-                    || $hostlist->add_host(hostname => $addr, arg => $self->arg, callback => $self->callback);
+                    || $hostlist->add_host(address => $addr, arg => $self->arg, callback => $self->callback);
 
             push @$host, @$new_varlist;
             $host->arg($in{'arg'});

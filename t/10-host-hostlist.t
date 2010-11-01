@@ -5,16 +5,16 @@ use Test::More;
 use SNMP::Effective::HostList;
 use SNMP::Effective::Host;
 
-plan tests => 11;
+plan tests => 17;
 
 my $list = SNMP::Effective::HostList->new;
 
 {
     my $host = SNMP::Effective::Host->new(address => 'bar');
     is($list->length, 0, 'no hosts in hostlist');
-    ok(!$list->has_host('foo'), 'foo is not in hostlist');
+    ok(!$list->get_host('foo'), 'foo is not in hostlist');
     ok($list->add_host(address => 'foo'), 'add foo to hostlist');
-    isa_ok($list->has_host('foo'), qw/SNMP::Effective::Host/);
+    isa_ok($list->get_host('foo'), qw/SNMP::Effective::Host/);
     ok($list->add_host($host), 'add foo to hostlist');
     is($list->length, 2, 'length is now two');
     ok($list->add_host($host), 'try to add foo to hostlist again');
