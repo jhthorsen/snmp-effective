@@ -187,11 +187,14 @@ sub _walk {
 
         if(my $r = $response->[$i]) {
             my($cur_oid, $ref_oid) = SNMP::Effective::make_numeric_oid($r->name, $request->[$i]->name);
+            my $oid_match = SNMP::Effective::match_oid($cur_oid, $ref_oid);
+            my $data_type = $r->[3] || 'UNDEF';
+
             $r->[0] = $cur_oid;
             $splice--;
 
             # valid oid
-            if(defined SNMP::Effective::match_oid($cur_oid, $ref_oid)) {
+            if(defined $oid_match and $data_type ne 'NULL') {
                 $host->data($r, $ref_oid);
                 $splice--;
                 $i++;

@@ -1,5 +1,9 @@
 Revision history for SNMP-Effective
 
+1.0801   Fri Nov 19 16:20:17 CET 2010
+       * Fix RT61579: SNMP Effective Hangs when returned datatype is NULL
+         Contributor: medved
+
 1.08     Mon Nov  1 12:11:20 CET 2010
        * Fix rename attribute in SNMP::Effective::Host: sesssion != session
        * Change locking. Use pipe(...) with a single byte-read instead of flock()
