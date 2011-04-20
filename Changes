@@ -1,5 +1,9 @@
 Revision history for SNMP-Effective
 
+1.08_02  Wed Apr 20 11:31:43 CEST 2011
+       * Add experimental feature for pre and post callbacks which is
+         called on the $host object from dispatch()
+
 1.0801   Fri Nov 19 16:20:17 CET 2010
        * Fix RT61579: SNMP Effective Hangs when returned datatype is NULL
          Contributor: medved

@@ -49,6 +49,18 @@ Get/set any data you like. By default, it returns a hash-ref, so you can do:
 
     $host->heap->{'mykey'} = "remember this";
  
+=head2 pre_collect_callback
+
+Holds a callback which will be called right before the first request is sent
+to the target host. The callback recevies L<$self|SNMP::Effective::Host> as
+the first argument and the L<SNMP::Effective> object as the second.
+
+=head2 post_collect_callback
+
+Holds a callback which will be called after L<SNMP::Effective> is done with
+the C<$host> object. The callback recevies L<$self|SNMP::Effective::Host> as
+the first argument and the L<SNMP::Effective> object as the second.
+
 =cut
 
 BEGIN {
@@ -59,6 +71,8 @@ BEGIN {
                       varlist   _varlist
                       callback  _callback
                       heap      _heap
+                      pre_collect_callback _pre_collect_callback
+                      post_collect_callback _post_collect_callback
                   /;
 
     for my $subname (keys %sub2key) {
@@ -154,6 +168,8 @@ sub new {
         _heap => $args->{'heap'},
         _session => \$session,
         _varlist => \@varlist,
+        _pre_collect_callback => $args->{'pre_collect_callback'} || sub {},
+        _post_collect_callback => $args->{'post_collect_callback'} || sub {},
     }, $class;
 }
 

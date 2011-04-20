@@ -5,7 +5,7 @@ use Test::More;
 use SNMP::Effective::HostList;
 use SNMP::Effective::Host;
 
-plan tests => 17;
+plan tests => 19;
 
 my $list = SNMP::Effective::HostList->new;
 
@@ -24,9 +24,17 @@ my $list = SNMP::Effective::HostList->new;
 
 {
     my $cb = sub {};
+    my $pre_cb = sub {};
+    my $post_cb = sub {};
     my $arg = { foo => 123 };
     $list->shift; # zero left...
-    $list->add_host(address => 'foo', callback => $cb, arg => $arg);
+    $list->add_host(
+        address => 'foo',
+        callback => $cb,
+        arg => $arg,
+        pre_collect_callback => $pre_cb,
+        post_collect_callback => $post_cb,
+    );
 
     my $host = $list->shift;
     is($host->callback, $cb, 'correct callback got added to host');
@@ -43,6 +51,8 @@ my $list = SNMP::Effective::HostList->new;
     is("$host", $tmp, '"$host" is overloaded to ->address');
     is($$host, $tmp, '$$host is overloaded to ->session');
     is_deeply([@$host], [$tmp], '@$host is overloaded to ->varlist');
+    is($host->pre_collect_callback, $pre_cb, 'pre_collect_callback holds code');
+    is($host->post_collect_callback, $post_cb, 'post_collect_callback holds code');
 }
 
 TODO: {

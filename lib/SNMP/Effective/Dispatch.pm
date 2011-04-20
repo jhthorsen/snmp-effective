@@ -76,7 +76,12 @@ sub dispatch {
 
     HOST:
     while($self->{'_sessions'} < $self->max_sessions or $host) {
-        $host ||= $hostlist->shift or last HOST;
+
+        unless($host) {
+            $host = $hostlist->shift or last HOST;
+            $host->pre_collect_callback->($host, $self);
+        }
+
         $request = shift @$host or next HOST;
         $snmp_method = $METHOD{ $request->[0] };
         $req_id = undef;
@@ -109,6 +114,7 @@ sub dispatch {
             $self->{'_sessions'}--;
         }
         if($req_id or @$host == 0) {
+            $host->post_collect_callback->($host, $self);
             $host = undef;
         }
     }
