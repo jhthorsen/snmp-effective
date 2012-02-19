@@ -1,5 +1,9 @@
 Revision history for SNMP-Effective
 
+1.09     Sun Feb 19 18:45:34 2012
+       * Fix RT72440: per-host arguments
+         Contributor: Sebastian Hyrwall
+
 1.08_02  Wed Apr 20 11:31:43 CEST 2011
        * Add experimental feature for pre and post callbacks which is
          called on the $host object from dispatch()

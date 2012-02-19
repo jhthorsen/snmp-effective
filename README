@@ -2,7 +2,7 @@ NAME
     SNMP::Effective - An effective SNMP-information-gathering module
 
 VERSION
-    1.08_02
+    1.09
 
 SYNOPSIS
         use SNMP::Effective;
