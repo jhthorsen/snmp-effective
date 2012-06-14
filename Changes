@@ -1,5 +1,9 @@
 Revision history for SNMP-Effective
 
+1.10     Fri Jun 15 00:21:43 2012
+       * Fix RT77805: Typo in SNMP::Effective
+         Contributor: Matt W
+
 1.09     Sun Feb 19 18:45:34 2012
        * Fix RT72440: per-host arguments
          Contributor: Sebastian Hyrwall

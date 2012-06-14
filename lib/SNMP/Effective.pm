@@ -6,7 +6,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-1.09
+1.10
 
 =head1 SYNOPSIS
 
@@ -88,7 +88,7 @@ use POSIX qw(:errno_h);
 
 use base qw/ SNMP::Effective::Dispatch /;
 
-our $VERSION = eval '1.09';
+our $VERSION = eval '1.10';
 our %SNMPARG = (
     Version => '2c',
     Community => 'public',
