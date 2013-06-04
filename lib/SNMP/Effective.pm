@@ -279,6 +279,8 @@ sub add {
         }
     }
 
+    $in{'arg'} ||= delete $in{'args'};
+
     if(ref $in{'desthost'} eq 'ARRAY') {
         for my $addr (@{$in{'desthost'}}) {
 
@@ -286,7 +288,7 @@ sub add {
             my $host = $hostlist->get_host($addr)
                     || $hostlist->add_host(
                            address => $addr,
-                           arg => $in{'args'} || $self->arg,
+                           arg => $in{'arg'} || $self->arg,
                            callback => $in{'callback'} || $self->callback,
                            heap => $in{'heap'} || $self->heap,
                        );
