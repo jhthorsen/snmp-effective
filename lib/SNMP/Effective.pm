@@ -6,7 +6,7 @@ SNMP::Effective - An effective SNMP-information-gathering module
 
 =head1 VERSION
 
-1.10
+1.11
 
 =head1 SYNOPSIS
 
@@ -88,7 +88,7 @@ use POSIX qw(:errno_h);
 
 use base qw/ SNMP::Effective::Dispatch /;
 
-our $VERSION = eval '1.10';
+our $VERSION = '1.11';
 our %SNMPARG = (
     Version => '2c',
     Community => 'public',
@@ -591,5 +591,8 @@ This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
 
 =cut
+
+1;
+
 
 1;

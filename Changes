@@ -1,5 +1,8 @@
 Revision history for SNMP-Effective
 
+1.11     Tue Jun  4 12:37:44 2013
+       * Fix typo: "args" to "arg"
+
 1.10     Fri Jun 15 00:21:43 2012
        * Fix RT77805: Typo in SNMP::Effective
          Contributor: Matt W
