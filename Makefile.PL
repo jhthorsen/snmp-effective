@@ -11,4 +11,6 @@ test_requires q(Test::More)    => 0;
 recommends    q(Log::Log4perl) => 0;
 no_index      q(examples)      => 0;
 
+repository q(https://github.com/jhthorsen/snmp-effective.git);
+
 WriteAll;

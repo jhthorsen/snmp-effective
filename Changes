@@ -1,5 +1,8 @@
 Revision history for SNMP-Effective
 
+1.1101   Tue Oct  1 12:30:15 2013
+       * Add repository to Makefile.PL
+
 1.11     Tue Jun  4 12:37:44 2013
        * Fix typo: "args" to "arg"
 
