@@ -1,5 +1,8 @@
 Revision history for SNMP-Effective
 
+1.1103   2016-05-18
+       * Update issue tracker to GitHub
+
 1.1102   2016-05-14
        * Point release to fix MANIFEST
 
