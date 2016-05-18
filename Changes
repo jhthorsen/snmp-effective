@@ -1,5 +1,8 @@
 Revision history for SNMP-Effective
 
+1.1102   2016-05-14
+       * Point release to fix MANIFEST
+
 1.1101   Tue Oct  1 12:30:15 2013
        * Add repository to Makefile.PL
 
