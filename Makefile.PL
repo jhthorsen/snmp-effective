@@ -7,19 +7,9 @@ my %WriteMakefileArgs = (
   ABSTRACT_FROM  => 'lib/SNMP/Effective.pm',
   VERSION_FROM   => 'lib/SNMP/Effective.pm',
   EXE_FILES      => [qw()],
-  BUILD_REQUIRES => {}
-,
-  TEST_REQUIRES  => {
-  'Test::More' => '0'
-}
-,
-  PREREQ_PM      => {
-  'POSIX' => '0',
-  'SNMP' => '0',
-  'Tie::Array' => '0',
-  'Time::HiRes' => '0'
-}
-,
+  BUILD_REQUIRES => {},
+  TEST_REQUIRES  => {'Test::More' => '1.30'},
+  PREREQ_PM      => {'NetSNMP::default_store' => '0', 'SNMP' => '0', 'Tie::Array' => '1.00', 'Time::HiRes' => '1.00'},
   META_MERGE     => {
     'dynamic_config' => 0,
     'meta-spec'      => {version => 2},
